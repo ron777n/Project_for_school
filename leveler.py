@@ -3,22 +3,32 @@ This makes a level with images and the level data
 """
 
 import pygame
+from pygame.math import Vector2
 from typing import List
 import json
 import os
 
 
 class Line(pygame.sprite.Sprite):
-    def __init__(self, start_pos, end_pos, color=(255, 0, 0), width=1):
+    def __init__(self, start_pos, end_pos, color=(255, 0, 0), width=10):
         super().__init__()
         self.start_pos = start_pos
         self.end_pos = end_pos
         self.color = color
         self.width = width
-        self.rect = pygame.Rect(start_pos, end_pos)
+        self.rect = pygame.Rect(start_pos, (end_pos-start_pos)+Vector2(10, 10))
 
     def add_line(self, surface):
-        pygame.draw.line(surface, self.color, self.start_pos, self.end_pos, self.width)
+        # pygame.draw.line(surface, self.color, self.start_pos, self.end_pos, self.width)
+        pygame.draw.rect(surface, self.color, self.rect, 0)
+
+    @property
+    def horizontal(self):
+        return self.start_pos.y == self.end_pos.y
+
+    @property
+    def vertical(self):
+        return self.start_pos.x == self.end_pos.x
 
     def __str__(self):
         return f"Line: ( {self.start_pos}, {self.end_pos} )"
@@ -37,10 +47,9 @@ class Level:
         self.has_progression_coins = False
 
     def add_line(self, x1, y1, x2, y2):
-        self.lines.add(Line((x1, y1), (x2, y2)))
+        self.lines.add(Line(Vector2(min(x1, x2), min(y1, y2)), Vector2(max(x1, x2), max(y1, y2))))
 
     def get_image(self):
-        # my_image = pygame.Surface(self.window_size, pygame.SRCALPHA)
         for line in self.lines:
             line.add_line(self.window)
         return self.window

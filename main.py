@@ -5,41 +5,23 @@ Sisyphus
 Daniel M
 Roey ben dor
 """
-"""
-This is for a player
-"""
 
 import pygame
 import sys
 from pygame.math import Vector2
-from leveler import build_levels
+import leveler
+from general import cycle_generator
 
-
+# window settings
 WIDTH = 1200
 HEIGHT = 900
+
+# player settings
 ACC = 0.3
 FRIC = -0.10
-
-
-class Background(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-        self.bgimage = pygame.image.load("level_images/1.png")
-        self.bgY = 0
-        self.bgX = 0
-
-    def render(self):
-        world.blit(self.bgimage, (self.bgX, self.bgY))
-
-
-class Ground(pygame.sprite.Sprite):
-    def __init__(self):
-        super().__init__()
-        self.image = pygame.Surface((WIDTH, HEIGHT//100*10), pygame.SRCALPHA)
-        self.rect = self.image.get_rect(center=(350, HEIGHT/100*96))
-
-    def render(self):
-        world.blit(self.image, (self.rect.x, self.rect.y))
+RUN_SPEED = 5
+TERMINAL_VELOCITY = 20
+GRAVITY = 0.6
 
 
 class Enemy(pygame.sprite.Sprite):
@@ -54,82 +36,214 @@ class Player(pygame.sprite.Sprite):
 
     def __init__(self):
         super().__init__()
-        self.image = pygame.image.load("sprites/base_player.png")
-        self.rect = self.image.get_rect()
+        self.images = [pygame.image.load("sprites/run1.png"), pygame.image.load("sprites/run2.png"),
+                       pygame.image.load("sprites/run3.png"), pygame.image.load("sprites/idle.png"),
+                       pygame.image.load("sprites/fall.png"), pygame.image.load("sprites/fallen.png"),
+                       pygame.image.load("sprites/jump.png"), pygame.image.load("sprites/oof.png"),
+                       pygame.image.load("sprites/squat.png")]
+
+        self.rect = self.images[0].get_rect()
+        self.current_image = 3
+        self.get_run_frame = cycle_generator(2)
+        self.is_grounded = False
+        self.bumped = False
+        self.running = False
+        self.turn = False
 
         # Position and direction
         self.vx = 0
         self.pos = Vector2((340, 240))
         self.vel = Vector2(0, 0)
-        self.direction = "RIGHT"
         self.acc = Vector2(0, 0)
+        self.pre_vel = Vector2(0, 0)
         self.jumping = False
 
+    def is_player_grounded(self, ground):
+        rect_ = self.rect.copy()
+        rect_.y += 1
+        for line in ground:
+            if line.horizontal and rect_.colliderect(line.rect):
+                return True
+        return False
+
     def move(self):
-        # Keep a constant acceleration of 0.5 in the downwards direction (gravity)
-        self.acc = Vector2(0, 0.5)
-        hits = pygame.sprite.spritecollide(player, blocks, False)
-        if hits:
-            for hit in hits:
-                if self.pos.y < hit.rect.bottom:
-                    pass
-
-        # Will set running to False if the player has slowed down to a certain extent
-        if abs(self.vel.x) > 0.3:
-            self.running = True
-        else:
-            self.running = False
-
-        # Returns the current key presses
-        pressed_keys = pygame.key.get_pressed()
-
-        # Accelerates the player in the direction of the key press
-        if pressed_keys[pygame.K_LEFT]:
-            self.acc.x = -ACC
-        if pressed_keys[pygame.K_RIGHT]:
-            self.acc.x = ACC
-
-        # Formulas to calculate velocity while accounting for friction
-        self.acc.x += self.vel.x * FRIC
-        self.vel += self.acc
-        self.pos += self.vel + 0.5 * self.acc  # Updates Position with new values
-
-        # This causes character warping from one point of the screen to the other
-        if self.pos.x > WIDTH:
-            self.pos.x = WIDTH
-        if self.pos.x < 0:
-            self.pos.x = 0
+        self.running = False
+        if self.is_grounded:
+            if not self.is_player_grounded(blocks):
+                self.is_grounded = False
+                return
+            pressed_keys = pygame.key.get_pressed()
+            if pressed_keys[pygame.K_LEFT] or pressed_keys[pygame.K_a]:
+                self.running = True
+                self.vel = Vector2(-RUN_SPEED, 0)
+            elif pressed_keys[pygame.K_RIGHT] or pressed_keys[pygame.K_d]:
+                self.running = True
+                self.vel = Vector2(RUN_SPEED, 0)
+            else:
+                self.vel = Vector2(0, 0)
 
         self.rect.midbottom = self.pos
 
+    def check_collisions(self, group: pygame.sprite.Group):
+        hits = pygame.sprite.spritecollide(player, group, False)
+        if not hits:
+            return
+        chosen_hit: leveler.Line = self.select_hit(hits)
+        might_land = False
+        if not chosen_hit:
+            return
+        if chosen_hit.horizontal:
+            if self.vel.y > 0:
+                self.pos.y = chosen_hit.start_pos[1]
+                if len(hits) > 1:
+                    might_land = True
+                    self.vel = Vector2(0, 0)
+                else:
+                    self.land()
+            else:
+                self.vel.y = 0 - self.vel.y / 2
+                self.pos.y = chosen_hit.start_pos[1]  # TODO add bump sound effect
+
+        elif chosen_hit.vertical:
+            if self.vel.x > 0:
+                self.pos.x = chosen_hit.start_pos[0] - self.rect.width * 0.6
+            elif self.vel.x < 0:
+                self.pos.x = chosen_hit.end_pos[0] + self.rect.width * 0.6
+            else:
+                print("this.bad = true")
+                if self.pre_vel.x > 0:
+                    self.pos.x = chosen_hit.start_pos[0] - self.rect.width
+                elif self.pre_vel.x < 0:
+                    self.pos.x = chosen_hit.end_pos[0] + self.rect.width
+                else:
+                    print("self.very bad = true")
+                print(self.pos.x)
+            if not self.is_grounded:
+                self.vel.x = 0 - self.vel.x / 2
+                self.bumped = True  # TODO add bump sound effect
+            if len(hits) > 1:
+                if might_land and self.is_player_grounded(blocks):
+                    self.land()
+
+    def select_hit(self, hits):
+        if len(hits) == 1:
+            return hits[0]
+        if len(hits) == 2:
+            vert: leveler.Line
+            vert, horiz, diag = [None] * 3
+            if hits[0].vertical:
+                vert = hits[0]
+            if hits[0].horizontal:
+                horiz = hits[0]
+            # if hits[0].isDiagonal:
+            #     diag = hits[0]
+            if hits[1].vertical:
+                vert = hits[1]
+            if hits[1].horizontal:
+                horiz = hits[1]
+            # if hits[1].isDiagonal:
+            #     diag = hits[1]
+            if vert and horiz:
+                if self.vel.y < 0:
+                    if vert.rect.midright[1] > horiz.rect.midright[1]:
+                        return vert
+                    return horiz
+                else:
+                    if vert.rect.midright[1] < horiz.rect.midright[1]:
+                        return vert
+                    else:
+                        return horiz
+            if horiz and diag:
+                if diag.midright[1] > horiz.midright[1]:
+                    return horiz
+        max_correction_allowed = -(self.vel.copy())
+
+        min_correction = 10_000
+
+        line_: leveler.Line = hits[0]
+
+        line: leveler.Line
+        for line in hits:
+            directed_correction: Vector2 = Vector2(0, 0)
+            correction = 10_000
+            if line.horizontal:
+                if self.vel.y > 0:
+                    directed_correction.y = line.start_pos[1] - (self.pos.y + self.rect.height)
+                    correction = abs(directed_correction.y - (line.start_pos[1] - self.rect.height))
+                else:
+                    directed_correction.y = line.start_pos[1] - self.pos.y
+                    correction = abs(self.pos.y - line.start_pos[1])
+            elif line.vertical:
+                if self.vel.x > 0:
+                    directed_correction.x = line.start_pos[0] - (self.pos.x + self.rect.width)
+                    correction = abs(self.pos.x - (line.start_pos[0] - self.rect.width))
+                else:
+                    directed_correction.x = line.start_pos[0] - self.pos.x
+                    correction = abs(self.pos.x - line.start_pos[0])
+            else:
+                print("This bitch diagonal")
+
+            if int(directed_correction.x) in range(0, int(max_correction_allowed.x)) and int(
+                    directed_correction.y) in range(0, int(max_correction_allowed.y)):
+                if correction < min_correction:
+                    min_correction = correction
+                    line_ = line
+
+        print(line_)
+        return line_
+
+    def land(self):
+        self.is_grounded = True
+        self.vel = Vector2(0, 0)
+        self.bumped = False
+
     def gravity_check(self):
-        hits = pygame.sprite.spritecollide(player, blocks, False)
-        if self.vel.y > 0:
-            if hits:
-                lowest = hits[0]
-                if self.pos.y < lowest.rect.bottom:
-                    self.pos.y = lowest.rect.top + 1
-                    self.vel.y = 0
-                    self.jumping = False
+        if not self.is_grounded:
+            self.vel.y = min(self.vel.y + GRAVITY, TERMINAL_VELOCITY)
+
+    def update(self):
+        self.gravity_check()
+        self.move()
+        self.pos += self.vel
+        self.pre_vel = self.vel.copy()
+        self.check_collisions(blocks)
+
+    @property
+    def image(self):
+        if self.jumping:
+            self.current_image = 6
+        elif self.running:
+            self.current_image = next(self.get_run_frame)
+        elif self.bumped:
+            self.current_image = 7
+        elif not self.is_grounded:
+            self.current_image = 4
+        else:
+            self.current_image = 3
+
+        if self.vel.x < 0:
+            self.turn = True
+        elif self.vel.x > 0:
+            self.turn = False
+
+        image_ = self.images[self.current_image].copy()
+
+        if self.turn:
+            image_ = pygame.transform.flip(image_, True, False)
+        return image_
 
     def jump(self):
-        self.rect.x += 1
-
-        # Check to see if payer is in contact with the ground
-        hits = pygame.sprite.spritecollide(self, blocks, False)
-
-        self.rect.x -= 1
-
-        # If touching the ground, and not currently jumping, cause the player to jump.
-        if hits and not self.jumping:
-            self.jumping = True
-            self.vel.y = -12
+        if not self.is_grounded:
+            return
+        # self.is_falling = False
+        self.is_grounded = False
+        self.vel.y = -15
 
 
 pygame.init()
 fps = 60
 fps_clock = pygame.time.Clock()
-levels = build_levels()
+levels = leveler.build_levels()
 
 world = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Game")
@@ -137,20 +251,14 @@ back_drop_box = world.get_rect()
 back_drop = levels[0].get_image()
 blocks: pygame.sprite.Group = levels[0].get_line_group()
 
-background = Background()
-ground = Ground()
-ground_group = pygame.sprite.Group()
-ground_group.add(ground)
-
 player = Player()  # spawn player
-player.rect.x = 0  # go to x
-player.rect.y = 0  # go to y
+player.pos.x = 100  # go to x
+player.pos.y = 20  # go to y
 player_list = pygame.sprite.Group()
 player_list.add(player)
 
 running = True
 while running:
-    player.gravity_check()
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -169,7 +277,10 @@ while running:
                 player.jump()
 
     world.blit(back_drop, back_drop_box)
+    # pygame.draw.rect(world, (255, 0, 0), player.rect, 0)
+    # for react in blocks:
+    #     pygame.draw.rect(world, (255, 0, 0), react.rect, 0)
+    player.update()
     player_list.draw(world)  # draw player
-    player.move()
     pygame.display.flip()
     fps_clock.tick(fps)
