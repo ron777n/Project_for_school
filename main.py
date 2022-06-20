@@ -8,7 +8,6 @@ Roey ben dor
 
 import pygame
 import sys
-from pygame.math import Vector2
 import leveler
 import player
 

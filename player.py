@@ -51,7 +51,7 @@ class Player(pygame.sprite.Sprite):
         return self.level
 
     @level.setter
-    def level_setter(self, new_level: leveler.Level):
+    def level(self, new_level: leveler.Level):
         self.blocks = new_level.get_line_group()
         self._level = new_level
 
