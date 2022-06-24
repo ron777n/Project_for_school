@@ -9,7 +9,7 @@ import logging
 
 from typing import Dict
 
-from client_protocols import use_protocol
+from protocols.client_protocols import use_protocol
 
 PORT = 7677
 

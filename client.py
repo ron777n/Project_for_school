@@ -6,33 +6,30 @@ import socket
 import threading
 import time
 
-from Main_project.Utils.events import *
-import server_protocols
+from protocols import server_protocols
+from Utils.events import event, post_event
 
 IP = "127.0.0.1"
 PORT = 7677
 
 
+@event("on_message")
 def user_message(message, colors, client_id):
     print(f"client with id({client_id}) sent: \"{message}\" with colors: {colors}")
 
 
+@event("on_echo")
 def echo(message):
     print("Echoed: ", message)
 
 
+@event("on_echo")
 def echo_message(message):
     print("Echoed message: ", message)
 
 
 events = server_protocols.events
 event_types = list(events.keys())
-subscribe(event_types[0], user_message)
-subscribe(event_types[1], echo)
-subscribe(event_types[1], echo_message)
-
-
-# server_protocols.
 
 
 def receive_messages(socket_):
@@ -47,7 +44,9 @@ def receive_messages(socket_):
         if not got:
             print("client Gone")
             return
-        server_protocols.call_protocol(got)
+        protocol = server_protocols.get_protocol(got)
+        data = protocol.get_message_data(got)[1:]
+        post_event(protocol.EVENT_TYPE, *data)
 
 
 def main():

@@ -4,7 +4,6 @@ file will have everything we could do with the client
 """
 import importlib
 from typing import List, Protocol, runtime_checkable, Tuple, Union
-from Main_project.Utils.events import *
 import os
 import logging
 
@@ -51,21 +50,8 @@ def register_protocol(protocol: ServerCommand):
     events[protocol.EVENT_TYPE] = protocol
 
 
-def call_protocol(message):
-    """
-    calls the matching protocol's event
-    :param message:
-    """
-    for protocol in protocols:
-        if protocol.PACKET_ID[0] == message[0]:
-            packet_id, *headers, data = protocol.get_message_data(message)
-            post_event(protocol.EVENT_TYPE, data, *headers)
-            return
-    print("Protocol not supported yet or missed")
-    return
-
-
 logger = logging.getLogger(__name__)
+
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter("%(created)f: %(message)s")
 
@@ -73,6 +59,19 @@ stream_handler = logging.StreamHandler()
 stream_handler.setFormatter(formatter)
 
 logger.addHandler(stream_handler)
+
+
+def get_protocol(message):
+    """
+    calls the matching protocol's event
+    :param message:
+    """
+    for protocol in protocols:
+        if protocol.PACKET_ID[0] == message[0]:
+            return protocol
+
+    logging.debug(f"Protocol not supported yet or missed for {message}")
+    return
 
 
 def load_modules():
@@ -100,7 +99,7 @@ def load_modules():
                 logging.warning(f"Library: {m.__name__} does not follow protocol, skipping to next one")
 
 
-__all__ = ["call_protocol", "events"]
+__all__ = ["get_protocol", "events"]
 
 
 load_modules()
