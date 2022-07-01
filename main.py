@@ -23,12 +23,10 @@ levels = leveler.build_levels()
 world = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Game")
 back_drop_box = world.get_rect()
-back_drop = levels[0].get_image()
+back_drop = levels[0].image
 
-player = player.Player(levels[0])  # spawn player
-player.pos.x = 100  # might change levels to have spawn point in data
-player.pos.y = 20
 player_list = pygame.sprite.Group()
+player = player.Player(levels[0])
 player_list.add(player)
 
 running = True
@@ -51,9 +49,6 @@ while running:
                 player.jump()
 
     world.blit(back_drop, back_drop_box)
-    # pygame.draw.rect(world, (255, 0, 0), player.rect, 0)
-    # for react in blocks:
-    #     pygame.draw.rect(world, (255, 0, 0), react.rect, 0)
     player.update()
     player_list.draw(world)  # draw player
     pygame.display.flip()

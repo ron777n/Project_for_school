@@ -2,6 +2,6 @@
 imports everything
 """
 
-import events
+from . import events
 
 __all__ = ["events"]

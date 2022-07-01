@@ -8,6 +8,9 @@ import os
 import logging
 
 
+LOGGING_LEVEL = logging.WARNING
+
+
 @runtime_checkable
 class ServerCommand(Protocol):
     """
@@ -17,6 +20,7 @@ class ServerCommand(Protocol):
     SOCKET_TYPE: str
     DATA_TYPE: type
     EVENT_TYPE: str
+    SENDING_HEADERS: int
 
     @staticmethod
     def get_message_data(message: bytes) -> Tuple[any, ...]:
@@ -37,8 +41,7 @@ class ServerCommand(Protocol):
         ...
 
 
-protocols: List[ServerCommand] = []
-events = {}
+data = {"protocols": {}, "events": {}}
 
 
 def register_protocol(protocol: ServerCommand):
@@ -46,13 +49,13 @@ def register_protocol(protocol: ServerCommand):
     adds a protocol to the list of protocols
     :param protocol:
     """
-    protocols.append(protocol)
-    events[protocol.EVENT_TYPE] = protocol
+    data["protocols"][protocol.__name__] = protocol
+    data["events"][protocol.EVENT_TYPE] = protocol
 
 
 logger = logging.getLogger(__name__)
 
-logger.setLevel(logging.DEBUG)
+logger.setLevel(LOGGING_LEVEL)
 formatter = logging.Formatter("%(created)f: %(message)s")
 
 stream_handler = logging.StreamHandler()
@@ -61,45 +64,18 @@ stream_handler.setFormatter(formatter)
 logger.addHandler(stream_handler)
 
 
-def get_protocol(message):
+def use_protocol(message, socket_type):
     """
     calls the matching protocol's event
-    :param message:
+    :param message: the message from the socket
+    :param socket_type: the type of the socket
     """
-    for protocol in protocols:
-        if protocol.PACKET_ID[0] == message[0]:
+    for protocol in data["protocols"].values():
+        if protocol.SOCKET_TYPE == socket_type and protocol.PACKET_ID[0] == message[0]:
             return protocol
 
     logging.debug(f"Protocol not supported yet or missed for {message}")
     return
 
 
-def load_modules():
-    """
-    loads every file in the directory
-    """
-    if __name__ == '__main__':
-        path = ''
-        files = os.listdir()
-    else:
-        path = __name__+"."
-        files = os.listdir(__name__.replace(".", "\\"))
-    for file in files:
-        if not file.startswith("__"):
-            m = importlib.import_module(f"{path}{file[:-3]}")
-            if hasattr(m, "protocols") and isinstance(m.protocols, list):
-                for protocol in m.protocols:
-                    if isinstance(protocol, ServerCommand):
-                        register_protocol(protocol)
-                        logging.debug(f"Loaded protocol \"{protocol}\" from library {m.__name__}")
-                    else:
-                        logging.warning(f"Library {m.__name__} protocol: \"{protocol}\" does not follow protocol,"
-                                        f" skipping to next one")
-            else:
-                logging.warning(f"Library: {m.__name__} does not follow protocol, skipping to next one")
-
-
-__all__ = ["get_protocol", "events"]
-
-
-load_modules()
+template_class = ServerCommand
