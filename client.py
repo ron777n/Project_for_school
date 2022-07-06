@@ -6,7 +6,7 @@ import socket
 import threading
 import time
 
-from decorators import print_log
+# from decorators import print_log
 
 import loader
 from Utils.events import event, post_event, create_event
@@ -50,8 +50,8 @@ def sign_up(message):
     print(f"sign_up returned - {message}")
 
 
-@event("on_echo")
-def echo(message):
+@event  # made it so that if it didn't get anything the function uses the function name as type, because i fuckin' can
+def on_echo(message):
     """
     simple example of using an event
     :param message:
@@ -204,7 +204,6 @@ def main():
 
         message_length = len(message) + 3
         message = message_length.to_bytes(3, "big") + message
-        print(message)
         if socket_type == "TCP":
             client_tcp_socket.sendall(message)
         else:

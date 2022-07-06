@@ -3,6 +3,7 @@ everything about events
 """
 from functools import wraps
 import logging
+
 logger = logging.getLogger(__name__)
 
 logger.setLevel(logging.WARNING)
@@ -23,8 +24,8 @@ def subscribe(event_type: str, fn):
     :param fn: function to set
     """
     if event_type not in subscribers:
-        logger.warning(f"warning, event {event_type} doesn't seem to exist,"
-                       f" will still create new event for you but might not work")
+        logger.debug(f"warning, event {event_type} doesn't seem to exist,"
+                     f" will still create new event for you but might not work")
         subscribers[event_type] = [fn]
     else:
         subscribers[event_type].append(fn)
@@ -36,7 +37,7 @@ def create_event(event_type):
     :param event_type: name/id of the event
     """
     if event_type in subscribers:
-        logger.warning(f"event {event_type} created more than once")
+        logger.debug(f"event {event_type} created more than once")
     else:
         subscribers[event_type] = []
 
@@ -49,7 +50,10 @@ def post_event(event_type, *args, **kwargs):
     :param kwargs: any key word arguments to send to the functions
     """
     if event_type not in subscribers:
-        logger.warning(f"{event_type} has no subscribers")
+        logger.warning(f"{event_type} called but wasn't declared")
+        return
+    if not subscribers[event_type]:
+        logger.warning(f"{event_type} called with no subscribers")
         return
     logger.debug(f"{event_type} called with args:{args} and kwargs: "
                  f"{kwargs} to {len(subscribers[event_type])} functions")
@@ -82,7 +86,12 @@ def event(event_type):
             return fnc(*args, **kwargs)
         subscribe(event_, new_function)
         return new_function
-    event_ = event_type if not callable(event_type) else "on_echo"
+
+    if not callable(event_type):
+        event_ = event_type
+    else:
+        event_ = event_type.__name__
+        return decorator(event_type)
     return decorator
 
 

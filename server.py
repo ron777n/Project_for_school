@@ -26,8 +26,8 @@ class Server:
         self.Server_protocol.load_modules()
 
         self.logger = logging.getLogger(__name__)
-        self.logger.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(asctime)s:    %(levelname)s:    %(message)s")
+        self.logger.setLevel(logging.WARNING)
+        formatter = logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
 
         stream_handler = logging.StreamHandler()
         stream_handler.setFormatter(formatter)
@@ -107,7 +107,7 @@ class Server:
                         except ConnectionError:
                             msg = ''
                         if not msg:
-                            self.logger.warning(f"{socket_.getpeername()} sent invalid packet")
+                            self.logger.info(f"{socket_.getpeername()} sent invalid packet")
                             self.remove_client(socket_)
                             continue
                         if not self.clients[socket_]["msg"]:
@@ -132,11 +132,11 @@ class Server:
                         try:
                             socket_.sendall(message)
                         except ConnectionError:
-                            self.logger.warning(f"handling sending exception error for {socket_.getpeername()}")
+                            self.logger.info(f"handling sending exception error for {socket_.getpeername()}")
                             self.remove_client(socket_)
 
                     for socket_ in exceptional:
-                        self.logger.warning(f"handling exception error for {socket_.getpeername()}")
+                        self.logger.info(f"handling exception error for {socket_.getpeername()}")
                         self.remove_client(socket_)
 
                     writeable_udp = True
@@ -151,8 +151,9 @@ class Server:
                             message = message_length.to_bytes(3, "big") + next_message
                             try:
                                 socket_.sendto(message, address)
-                            except ConnectionError:
-                                self.logger.warning(f"sending exception error for udp {socket_.getpeername()}")
+                            except ConnectionError as e:
+                                self.logger.warning(f"sending error({e}), socket: {socket_.getpeername()} "
+                                                    f"for message: {message}")
 
     def remove_client(self, client_socket):
         """

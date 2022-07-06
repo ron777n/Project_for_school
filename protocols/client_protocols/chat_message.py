@@ -121,7 +121,6 @@ class UDPChatCommand:
         :param color: the colour of the text
         :return: message by the protocol
         """
-        print(color)
         return f"{UDPChatCommand.PACKET_ID.decode()}{''.join([x.to_bytes(1, 'little').decode() for x in color])}" \
                f"{player_id.to_bytes(2, 'big').decode()}{message}"
 

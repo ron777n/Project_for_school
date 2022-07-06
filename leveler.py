@@ -20,7 +20,7 @@ class Line(pygame.sprite.Sprite):
         self.end_pos = end_pos
         self.color = color
         self.width = width
-        self.rect = pygame.Rect(start_pos, (end_pos-start_pos)+Vector2(10, 10))
+        self.rect = pygame.Rect(start_pos, (end_pos-start_pos) + Vector2(5, 5))
         self.horizontal = self.start_pos.y == self.end_pos.y
         self.vertical = self.start_pos.x == self.end_pos.x
 
@@ -29,7 +29,7 @@ class Level:
     """
     the level, has image shape, game details and hatboxes for the floors and walls
     """
-    def __init__(self, window: str, draw=True):
+    def __init__(self, window: str):
         self.image: pygame.image = pygame.image.load(window)
         self.lines = pygame.sprite.Group()
         self.levelNo = 0
@@ -38,23 +38,19 @@ class Level:
         self.coins = []
         self.has_progression_coins = False
         self.shape = self.image.get_width(), self.image.get_height()
-        if draw:
-            line: Line
-            for line in self.lines:
-                pygame.draw.rect(self.image, line.color, line.rect)
 
-    def add_line(self, x1, y1, x2, y2):
+    def add_line(self, line, draw=False):
         """
         adds a line to the the level
-        :param x1: starting x pos
-        :param y1: starting y pos
-        :param x2: ending x pos
-        :param y2: ending y pos
+        :param line: the line to add
+        :param draw: whether to draw the line or not
         """
-        self.lines.add(Line(Vector2(min(x1, x2), min(y1, y2)), Vector2(max(x1, x2), max(y1, y2))))
+        if draw:
+            pygame.draw.rect(self.image, (255, 0, 0), line.rect)
+        self.lines.add(line)
 
 
-def build_levels():
+def build_levels(draw=False):
     """
     downloads all the levels and adds them to a list of levels
     :return: the list of levels
@@ -66,8 +62,9 @@ def build_levels():
 
     for image, level_lines in zip(level_images, data.values()):
         level1 = Level(f"level_images/{image}")
-        for line in level_lines:
-            level1.add_line(*line)
+        for x1, y1, x2, y2 in level_lines:
+            line = Line(Vector2(min(x1, x2), min(y1, y2)), Vector2(max(x1, x2), max(y1, y2)))
+            level1.add_line(line, draw)
         levels.append(level1)
     return levels
 
