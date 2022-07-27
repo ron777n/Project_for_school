@@ -1,7 +1,6 @@
 """
 SignUp protocol
 """
-import os
 from typing import Dict, List, Union
 import json
 
@@ -25,7 +24,7 @@ class SignUp:
         :return: weather it matches the protocol
         """
         return socket_type == SignUp.SOCKET_TYPE and message[0] == SignUp.PACKET_ID[
-            0] and "username" not in client_data and len(message) >= SignUp.HEADER_SIZE
+            0] and "user_name" not in client_data and len(message) >= SignUp.HEADER_SIZE
 
     @staticmethod
     def get_answer(headers, message: Union[str, bytes], _client_data: Dict[str, any],
@@ -81,7 +80,7 @@ class Login:
         :return: weather it matches the protocol
         """
         return socket_type == Login.SOCKET_TYPE and message[0] == Login.PACKET_ID[
-            0] and "username" not in client_data and len(message) >= Login.HEADER_SIZE
+            0] and "user_name" not in client_data and len(message) >= Login.HEADER_SIZE
 
     @staticmethod
     def get_answer(headers, _message: Union[str, bytes], client_data: Dict[str, any],
@@ -98,7 +97,7 @@ class Login:
         name, password = headers
         name = name.strip()
         with open("users.json", "r") as f:
-            data: dict = json.load(f)  # TODO change this to firebase or other cloud service
+            data: dict = json.load(f)
         if name not in data["users"] or data["users"][name][0] != password:
             return f"{Login.PACKET_ID.decode()}{False.to_bytes(2, 'big').decode()}" \
                    f"invalid password or user_name".ljust(32)

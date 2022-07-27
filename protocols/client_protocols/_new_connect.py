@@ -1,17 +1,17 @@
 """
-ImageMessage protocol
+OnTcpConnection protocol
 """
 from typing import Dict, List, Union
 
 
-class ImageMessage:
+class OnTcpConnection:
     """
     simple echo protocol
     """
-    PACKET_ID = b'\x05'
-    SOCKET_TYPE = "UDP"
+    PACKET_ID = b'\x04'
+    SOCKET_TYPE = "TCP"
     DATA_TYPE = bytes
-    HEADER_SIZE = 1
+    HEADER_SIZE = 0
 
     @staticmethod
     def match(message: bytes, socket_type: str, _client_data: Dict[str, any]) -> bool:
@@ -22,26 +22,22 @@ class ImageMessage:
         :param _client_data: the data of the specified client
         :return: weather it matches the protocol
         """
-        return socket_type == ImageMessage.SOCKET_TYPE and message[0] == ImageMessage.PACKET_ID[0] and len(
-            message) > ImageMessage.HEADER_SIZE
+        return socket_type == OnTcpConnection.SOCKET_TYPE and message[0] == OnTcpConnection.PACKET_ID[0] and len(
+            message) > OnTcpConnection.HEADER_SIZE
 
     @staticmethod
-    def get_answer(_headers: bytes, message: bytes, client_data: Dict[str, any],
-                   clients: List[Dict[str, any]]) -> Union[str, bytes]:
+    def get_answer(_headers: bytes, message: Union[str, bytes], _client_data: Dict[str, any],
+                   _clients: List[Dict[str, any]]) -> Union[str, bytes]:
         """
         Function gets a message which follows the protocol and sends everyone the message of the client.
         as well as a message for the client which sent it that it was received
         :param _headers: for the headers
         :param message: the message from the socket
-        :param client_data: the data of the client
-        :param clients: data of the clients
+        :param _client_data: the data of the client
+        :param _clients: data of the clients
         :return: what to return to the client
         """
-        for data in clients:
-            if data["ID"] != client_data["ID"] and "user_name" in data:
-                data["udp_message_queue"].put(ImageMessage.PACKET_ID + message)
-
-        return ImageMessage.PACKET_ID + message
+        return f"{OnTcpConnection.PACKET_ID.decode()}{message}"
 
     @staticmethod
     def get_headers(message: bytes):
@@ -53,4 +49,4 @@ class ImageMessage:
         return ()
 
 
-protocols = [ImageMessage]
+protocols = [OnTcpConnection]

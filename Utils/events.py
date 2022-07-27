@@ -1,10 +1,14 @@
 """
 everything about events
 """
+from typing import Callable, Iterable
 from functools import wraps
 import logging
 
+import pygame.event
+
 logger = logging.getLogger(__name__)
+logging.disable()
 
 logger.setLevel(logging.WARNING)
 formatter = logging.Formatter("%(created)f: %(message)s")
@@ -14,7 +18,7 @@ stream_handler.setFormatter(formatter)
 
 logger.addHandler(stream_handler)
 
-subscribers = dict()
+subscribers: dict[str, list[Callable]] = dict()
 
 
 def subscribe(event_type: str, fn):
@@ -29,6 +33,44 @@ def subscribe(event_type: str, fn):
         subscribers[event_type] = [fn]
     else:
         subscribers[event_type].append(fn)
+
+
+def get_subscribers(event_type):
+    """
+    returns a list of subscribers that are subbed to the event
+    :param event_type: the event in question
+    :return: a copy of the list
+    """
+    if event_type not in subscribers:
+        return
+    return subscribers[event_type][:]
+
+
+def unsubscribe(event_type: str, fn):
+    """
+    adds function to event, if event exists, else creates event and starts it with the shit
+    :param event_type: name/id of the event
+    :param fn: function to set
+    """
+    if event_type not in subscribers:
+        logger.debug(f"warning, event {event_type} doesn't seem to exist when deleting fn")
+    elif fn not in subscribers[event_type]:
+        logger.debug(f"warning, fn {fn.__name__} isn't subscribed to the event it's unsubscribing from")
+    else:
+        subscribers[event_type].remove(fn)
+
+
+def clear_event(event_type: str, fns: Iterable[Callable]):
+    """
+    clears all the functions for the event_type
+    :param event_type:
+    :param fns:
+    """
+    if event_type not in subscribers:
+        logger.debug(f"warning, event {event_type} doesn't seem to exist when clearing")
+    else:
+        subscribers[event_type].clear()
+        subscribers[event_type].extend(fns)
 
 
 def create_event(event_type):
@@ -49,11 +91,14 @@ def post_event(event_type, *args, **kwargs):
     :param args: any arguments to send to the functions
     :param kwargs: any key word arguments to send to the functions
     """
+    if isinstance(event_type, pygame.event.EventType):
+        pygame.event.post(event_type)
+        return
     if event_type not in subscribers:
         logger.warning(f"{event_type} called but wasn't declared")
         return
     if not subscribers[event_type]:
-        logger.warning(f"{event_type} called with no subscribers")
+        logger.info(f"{event_type} called with no subscribers")
         return
     logger.debug(f"{event_type} called with args:{args} and kwargs: "
                  f"{kwargs} to {len(subscribers[event_type])} functions")
@@ -74,6 +119,7 @@ def event(event_type):
         :param fnc: the function under the @ sign
         :return: the registered function
         """
+
         @wraps(fnc)
         def new_function(*args, **kwargs):
             """
@@ -84,6 +130,7 @@ def event(event_type):
             :param kwargs:
             """
             return fnc(*args, **kwargs)
+
         subscribe(event_, new_function)
         return new_function
 
@@ -95,4 +142,13 @@ def event(event_type):
     return decorator
 
 
-__all__ = ["subscribe", "post_event", "event", "create_event"]
+def event_exists(event_type):
+    """
+    checks if an event exists
+    :param event_type: the id of the event
+    """
+    return event_type in subscribers
+
+
+__all__ = ["subscribe", "post_event", "event", "create_event", "event_exists",
+           "unsubscribe", "get_subscribers", "clear_event"]

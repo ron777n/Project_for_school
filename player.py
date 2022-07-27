@@ -1,9 +1,6 @@
 """
 everything player
 """
-import math
-import pathlib
-
 import pygame
 from pygame.math import Vector2
 import leveler
@@ -15,18 +12,35 @@ TERMINAL_VELOCITY = 20
 GRAVITY = 0.6
 
 
-def cycle_generator(max_size):
+def cycle_generator(min_size, max_size):
     """
     calling next on this will cycle up and down the numbers from 0 to max_size
+    :param min_size: the minimum to start with, inclusive
     :param max_size: the max size wanted, not inclusive
     """
-    i = 0
+    i = min_size
     down = 1
     while 1:
         i += down
-        if i == max_size or i == 0:
+        if i == max_size or i == min_size:
             down *= -1
         yield i
+
+
+def load_sheet(url):
+    """
+    loads a sheet of player sprites
+    :param url: !url of the sheet, or name of the sprite if one of the defaults, or !b64 data
+    :return: tuple of all the "stances" of the player
+    """
+    images: list[pygame.Surface] = []
+    full_image = pygame.image.load(url)
+    assert full_image.get_rect().size == (744, 103), "Invalid sprite sheet size"
+    for i in range(0, 744, 93):
+        small_image = pygame.Surface((93, 103), pygame.SRCALPHA)
+        small_image.blit(full_image, (0, 0), (i, 0, 93, 103))
+        images.append(small_image)
+    return images
 
 
 class Player(pygame.sprite.Sprite):
@@ -40,23 +54,20 @@ class Player(pygame.sprite.Sprite):
     TERMINAL_VELOCITY = 20
     GRAVITY = 0.6
 
-    def __init__(self, level, start_x=340, start_y=240, sprite_path="sprites/player_sprites"):
+    def __init__(self, level, start_x=340, start_y=240, sprite_path=r"sprites/player_sprites/bob.png"):
         super().__init__()
-        images = (
-            '/run1.png', '/run2.png', '/run3.png', '/idle.png', '/fall.png', '/fallen.png', '/jump.png', '/oof.png',
-            '/squat.png')
-        self.images = [pygame.image.load(sprite_path + image_name) for image_name in images]
+        self.images = load_sheet(sprite_path)
 
         self.blocks = level.lines
         self._level = level
-        self.get_run_frame = cycle_generator(2)
+        self.get_run_frame = cycle_generator(5, 7)
         self.is_grounded = False
         self.bumped = False
         self.turn = False
 
         # Position and direction
         self.pos = Vector2((start_x, start_y))
-        self.rect = self.images[0].get_rect(midbottom=self.pos)
+        self.rect = self.images[6].get_rect(midbottom=self.pos)
         self.vel = Vector2(0, 0)
         self.jumps = self.MAX_JUMPS
         self._moving = 0
@@ -124,6 +135,13 @@ class Player(pygame.sprite.Sprite):
 
         self.rect.midbottom = self.pos
 
+    def dash(self, left):
+        """
+        moves the player fast in one direction
+        """
+        self.vel = Vector2(RUN_SPEED*2*left, self.vel.y/2)
+        self.rect.midbottom = self.pos
+
     def check_collisions(self):
         """
         check collisions with the level shit
@@ -143,14 +161,12 @@ class Player(pygame.sprite.Sprite):
                     self.land()
             else:
                 self.vel.y = 0 - self.vel.y / 2
-                self.rect.top = chosen_hit.end_pos[
-                                    1] + 10
-                # TODO add bump sound effect
+                self.rect.top = chosen_hit.end_pos[1] + 10  # TODO add bump sound effect
 
         elif chosen_hit.vertical:
             if not self.is_grounded:
                 self.vel.x = 0 - self.vel.x / 2
-                self.bumped = True  # TODO add bump sound effect
+                self.bumped = True
             if not self.turn:
                 self.rect.right = chosen_hit.rect.left
             else:
@@ -171,7 +187,7 @@ class Player(pygame.sprite.Sprite):
 
         if self.vel.y > 0:
             return min(hits, key=lambda x: min(abs(self.rect.top - x.rect.bottom),
-                                        abs(self.rect.bottom - x.rect.top)) if x.horizontal else 1000)
+                                               abs(self.rect.bottom - x.rect.top)) if x.horizontal else 1000)
         return min(hits, key=lambda x: min(abs(self.rect.top - x.rect.bottom),
                                            abs(self.rect.bottom - x.rect.top)) if x.horizontal else min(
             abs(self.rect.left - x.rect.centerx), abs(self.rect.right - x.rect.centerx)))
@@ -210,17 +226,19 @@ class Player(pygame.sprite.Sprite):
         gets the image by the parameters
         :return: the image
         """
+        # images = ('/run1.png', '/run2.png', '/run3.png', '/idle.png',
+        #           '/fall.png', '/fallen.png', '/jump.png', '/oof.png', "/bob.png")
         if self.moving and self.is_grounded:
             img_index = next(self.get_run_frame)
         elif self.bumped:
-            img_index = 7
+            img_index = 4
         elif not self.is_grounded:
             if self.vel.y > 0:
-                img_index = 4
+                img_index = 0
             else:
-                img_index = 6
+                img_index = 3
         else:
-            img_index = 3
+            img_index = 2
 
         if self.vel.x < 0:
             self.turn = True

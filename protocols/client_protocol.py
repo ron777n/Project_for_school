@@ -62,7 +62,7 @@ def use_protocol(message, socket_type, client_data, clients_data):
     :param clients_data:
     """
     for protocol in data["protocols"].values():
-        if protocol.match(message, socket_type, client_data):
+        if not protocol.__name__.startswith("_") and protocol.match(message, socket_type, client_data):
             headers = protocol.get_headers(message)
             message = message[protocol.HEADER_SIZE:]
             if protocol.DATA_TYPE == str:

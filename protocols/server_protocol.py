@@ -2,11 +2,8 @@
 this
 file will have everything we could do with the client
 """
-import importlib
-from typing import List, Protocol, runtime_checkable, Tuple, Union
-import os
+from typing import Protocol, runtime_checkable, Tuple, Union
 import logging
-
 
 LOGGING_LEVEL = logging.WARNING
 
@@ -71,7 +68,8 @@ def use_protocol(message, socket_type):
     :param socket_type: the type of the socket
     """
     for protocol in data["protocols"].values():
-        if protocol.SOCKET_TYPE == socket_type and protocol.PACKET_ID[0] == message[0]:
+        if not protocol.__name__.startswith("_") and protocol.SOCKET_TYPE == socket_type and protocol.PACKET_ID[0] == \
+                message[0]:
             return protocol
 
     logging.debug(f"Protocol not supported yet or missed for {message}")

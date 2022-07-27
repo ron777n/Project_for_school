@@ -32,6 +32,7 @@ class ChatCommand:
         :param color:
         :return:
         """
+        print(message, color)
         return f"{ChatCommand.PACKET_ID.decode()}{''.join([x.to_bytes(1, 'little').decode() for x in color])}{message}"
 
 

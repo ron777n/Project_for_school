@@ -40,10 +40,10 @@ class EchoTcpCommand:
         return f"{EchoTcpCommand.PACKET_ID.decode()}{message}"
 
     @staticmethod
-    def get_headers(message: bytes):
+    def get_headers(_message: bytes):
         """
         gets the headers for the protocol
-        :param message: message
+        :param _message: message
         :return: the headers
         """
         return ()
@@ -67,6 +67,7 @@ class EchoUdpCommand:
         :param _client_data: the data of the specified client
         :return: weather it matches the protocol
         """
+        print(message, EchoUdpCommand.PACKET_ID[0])
         return socket_type == EchoUdpCommand.SOCKET_TYPE and message[0] == EchoUdpCommand.PACKET_ID[0] and len(
             message) > EchoUdpCommand.HEADER_SIZE
 
