@@ -1,7 +1,6 @@
 """
 SignUp protocol
 """
-import os
 from typing import Dict, List, Union
 import json
 

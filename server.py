@@ -34,6 +34,7 @@ class Server:
 
         self.logger.addHandler(stream_handler)
         self.clients: Dict[socket.socket: Dict[str: any]] = {}
+        self.udp_clients: Dict[Tuple[str, int]: Dict[str: any]] = {}
         self.inputs: List[socket.socket] = []
 
     def main_loop(self):
@@ -58,7 +59,6 @@ class Server:
                     return
 
                 self.inputs.extend([server_TCP_socket, server_UDP_socket])
-                udp_clients: Dict[Tuple[str, int]: Dict[str: any]] = {}
                 current_user = 1
                 while self.inputs:
                     outputs = filter(lambda x: not self.clients[x]["tcp_message_queue"].empty(), self.inputs[2:])
@@ -82,13 +82,14 @@ class Server:
                             continue
                         elif socket_ is server_UDP_socket:
                             message, address = server_UDP_socket.recvfrom(65_535)
-                            if address not in udp_clients:
+                            message = message[3:]
+                            if address not in self.udp_clients:
                                 client_uuid = uuid.UUID(message[1:].decode())
                                 for data in self.clients.values():
                                     if client_uuid == data["UUID"]:
                                         data["udp_socket"] = address
                                         data["udp_message_queue"] = queue.Queue()
-                                        udp_clients[address] = data
+                                        self.udp_clients[address] = data
                                         protocol_answer = f'\x04Successfully connected udp socket to tcp data'.encode()
                                         break
                                 else:
@@ -97,7 +98,7 @@ class Server:
                                 server_UDP_socket.sendto(message, address)
                                 continue
                             protocol_answer = self.Server_protocol.use_protocol(message, "UDP",
-                                                                                udp_clients[address], self.clients)
+                                                                                self.udp_clients[address], self.clients)
                             if isinstance(protocol_answer, str):
                                 protocol_answer = protocol_answer.encode()
                             self.clients[client_sock]["udp_message_queue"].put(protocol_answer)
@@ -141,10 +142,10 @@ class Server:
 
                     writeable_udp = True
                     while writeable_udp:
-                        writeable_udp = list(filter(lambda x: not udp_clients[x]["udp_message_queue"].empty(),
-                                                    udp_clients))
+                        writeable_udp = list(filter(lambda x: not self.udp_clients[x]["udp_message_queue"].empty(),
+                                                    self.udp_clients))
                         for address in writeable_udp:
-                            next_message = udp_clients[address]["udp_message_queue"].get_nowait()
+                            next_message = self.udp_clients[address]["udp_message_queue"].get_nowait()
                             if isinstance(next_message, str):
                                 next_message = next_message.encode()
                             message_length = len(next_message) + 3
@@ -161,6 +162,8 @@ class Server:
         :param client_socket:
         """
         self.inputs.remove(client_socket)
+        if "udp_socket" in self.clients[client_socket]:
+            del self.udp_clients[self.clients[client_socket]["udp_socket"]]
         del self.clients[client_socket]
         client_socket.close()
 

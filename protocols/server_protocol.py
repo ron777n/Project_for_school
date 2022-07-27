@@ -2,9 +2,7 @@
 this
 file will have everything we could do with the client
 """
-import importlib
-from typing import List, Protocol, runtime_checkable, Tuple, Union
-import os
+from typing import Protocol, runtime_checkable, Tuple, Union
 import logging
 
 

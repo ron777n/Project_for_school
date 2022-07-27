@@ -1,9 +1,6 @@
 """
 everything player
 """
-import math
-import pathlib
-
 import pygame
 from pygame.math import Vector2
 import leveler
@@ -42,9 +39,8 @@ class Player(pygame.sprite.Sprite):
 
     def __init__(self, level, start_x=340, start_y=240, sprite_path="sprites/player_sprites"):
         super().__init__()
-        images = (
-            '/run1.png', '/run2.png', '/run3.png', '/idle.png', '/fall.png', '/fallen.png', '/jump.png', '/oof.png',
-            '/squat.png')
+        images = ('/run1.png', '/run2.png', '/run3.png', '/idle.png',
+                  '/fall.png', '/fallen.png', '/jump.png', '/oof.png')
         self.images = [pygame.image.load(sprite_path + image_name) for image_name in images]
 
         self.blocks = level.lines
@@ -143,9 +139,7 @@ class Player(pygame.sprite.Sprite):
                     self.land()
             else:
                 self.vel.y = 0 - self.vel.y / 2
-                self.rect.top = chosen_hit.end_pos[
-                                    1] + 10
-                # TODO add bump sound effect
+                self.rect.top = chosen_hit.end_pos[1] + 10  # TODO add bump sound effect
 
         elif chosen_hit.vertical:
             if not self.is_grounded:
@@ -171,7 +165,7 @@ class Player(pygame.sprite.Sprite):
 
         if self.vel.y > 0:
             return min(hits, key=lambda x: min(abs(self.rect.top - x.rect.bottom),
-                                        abs(self.rect.bottom - x.rect.top)) if x.horizontal else 1000)
+                                               abs(self.rect.bottom - x.rect.top)) if x.horizontal else 1000)
         return min(hits, key=lambda x: min(abs(self.rect.top - x.rect.bottom),
                                            abs(self.rect.bottom - x.rect.top)) if x.horizontal else min(
             abs(self.rect.left - x.rect.centerx), abs(self.rect.right - x.rect.centerx)))
