@@ -6,6 +6,7 @@ import sys
 import pygame
 
 from Utils.events import post_event, create_event
+from Utils.timing import functioned_timers
 
 events = ("click_down", "click_up", "quit", "base_key_down")
 
@@ -33,11 +34,15 @@ def check_events(events_list):
         elif pygame_event.type == pygame.MOUSEBUTTONUP:
             post_event("click_up", pygame_event.pos, pygame_event.button)
         elif pygame_event.type == pygame.MOUSEMOTION:
-            pass  # later on change where player is looking
-        elif pygame_event.type == pygame.MOUSEWHEEL:
-            pass  # for scroll gui
-        elif pygame_event.type == pygame.TEXTINPUT:
-            pass  # todo change the text to this thing that i just found
-        else:
             pass
+        elif pygame_event.type == pygame.MOUSEWHEEL:
+            pass
+        elif pygame_event.type == pygame.TEXTINPUT:
+            pass
+        else:
             # print(pygame.event.event_name(pygame_event.type))
+            pass
+
+    for timer in functioned_timers:
+        timer.check()
+

@@ -96,14 +96,16 @@ def key_down(normal, _special_keys, key):
     double_click = double_click_timer.check(normal)
     if normal == ' ':
         main_player.jump()
-    if normal == 'd':
+    elif key in (pygame.K_d, pygame.K_RIGHT):
         if double_click:
             main_player.dash(1)
         main_player.moving = 1
-    if normal == 'a':
+    elif key in (pygame.K_a, pygame.K_LEFT):
         if double_click:
             main_player.dash(-1)
         main_player.moving = -1
+    else:
+        print(normal)
     double_click_timer.reset(normal)
 
 

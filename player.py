@@ -4,6 +4,7 @@ everything player
 import pygame
 from pygame.math import Vector2
 import leveler
+from Utils.timing import Timer, FunctionedTimer
 
 ACCELERATION = 0.3
 FRICTION = -0.10
@@ -48,13 +49,16 @@ class Player(pygame.sprite.Sprite):
     Spawn a player
     """
     MAX_JUMPS = 2
+    TIMED_DASH = 300
+    DASH_COOL_DOWN = 3000
     ACCELERATION = 0.3
     FRICTION = -0.10
     RUN_SPEED = 5
     TERMINAL_VELOCITY = 20
     GRAVITY = 0.6
+    CHANGE_RUN_IMAGE = 200
 
-    def __init__(self, level, start_x=340, start_y=240, sprite_path=r"sprites/player_sprites/bob.png"):
+    def __init__(self, level, start_x=340, start_y=240, sprite_path=r"sprites/player_sprites/dvir.png"):
         super().__init__()
         self.images = load_sheet(sprite_path)
 
@@ -64,13 +68,20 @@ class Player(pygame.sprite.Sprite):
         self.is_grounded = False
         self.bumped = False
         self.turn = False
+        self.timed_dash = Timer(self.TIMED_DASH, False)
+        self.dash_cool_down = Timer(self.DASH_COOL_DOWN, False)
 
         # Position and direction
         self.pos = Vector2((start_x, start_y))
         self.rect = self.images[6].get_rect(midbottom=self.pos)
+        self.run_image = self.images[5]
+        FunctionedTimer(self.CHANGE_RUN_IMAGE, self._change_run, reset=True).reset()
         self.vel = Vector2(0, 0)
         self.jumps = self.MAX_JUMPS
         self._moving = 0
+
+    def _change_run(self):
+        self.run_image = self.images[next(self.get_run_frame)]
 
     @property
     def moving(self):
@@ -85,6 +96,7 @@ class Player(pygame.sprite.Sprite):
             self._moving = value
             if self.is_grounded:
                 self.land()
+                self.timed_dash.disable()
         else:
             self._moving = value
 
@@ -139,8 +151,11 @@ class Player(pygame.sprite.Sprite):
         """
         moves the player fast in one direction
         """
-        self.vel = Vector2(RUN_SPEED*2*left, self.vel.y/2)
-        self.rect.midbottom = self.pos
+        if not self.dash_cool_down.check():
+            self.vel = Vector2(RUN_SPEED*2*left, self.vel.y/2)
+            self.rect.midbottom = self.pos
+            self.timed_dash.reset()
+            self.dash_cool_down.reset()
 
     def check_collisions(self):
         """
@@ -200,12 +215,14 @@ class Player(pygame.sprite.Sprite):
         self.vel = Vector2(0, 0)
         self.bumped = False
         self.jumps = self.MAX_JUMPS
+        self.dash_cool_down.disable()
+        self.timed_dash.disable()
 
     def gravity_check(self):
         """
         sets the movement of y if player is not on ground
         """
-        if not self.is_grounded:
+        if not self.is_grounded and not self.timed_dash.check():
             self.vel.y = min(self.vel.y + GRAVITY, TERMINAL_VELOCITY)
 
     def update(self):
@@ -213,7 +230,9 @@ class Player(pygame.sprite.Sprite):
         runs everything
         """
         self.pos = Vector2(self.rect.midbottom)
-        self.pos += self.vel
+        self.pos.x += self.vel.x
+        if not self.timed_dash.check():
+            self.pos.y += self.vel.y
         self.gravity_check()
         self.rect.midbottom = self.pos
         self.check_collisions()
@@ -228,8 +247,16 @@ class Player(pygame.sprite.Sprite):
         """
         # images = ('/run1.png', '/run2.png', '/run3.png', '/idle.png',
         #           '/fall.png', '/fallen.png', '/jump.png', '/oof.png', "/bob.png")
+        if self.vel.x < 0:
+            self.turn = True
+        elif self.vel.x > 0:
+            self.turn = False
+
+        running = False
+
         if self.moving and self.is_grounded:
-            img_index = next(self.get_run_frame)
+            img_index = 0
+            running = True
         elif self.bumped:
             img_index = 4
         elif not self.is_grounded:
@@ -240,12 +267,10 @@ class Player(pygame.sprite.Sprite):
         else:
             img_index = 2
 
-        if self.vel.x < 0:
-            self.turn = True
-        elif self.vel.x > 0:
-            self.turn = False
-
-        image_ = self.images[img_index].copy()
+        if running:
+            image_ = self.run_image.copy()
+        else:
+            image_ = self.images[img_index].copy()
 
         if self.turn:
             image_ = pygame.transform.flip(image_, True, False)
