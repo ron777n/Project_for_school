@@ -25,11 +25,14 @@ class GuiWindow:
     for everything with the gui windows
     """
 
-    def __init__(self, window_size=(1920, 1080)):
+    def __init__(self):
+        self.display = pygame.display.get_surface()
+
         self.in_menu = False
         self.widgets = {}
         self._screen = pygame.sprite.Group()
-        self.screens = self.generate_screens(window_size)
+        self.screens = self.generate_screens(self.display.get_size())
+
         subscribe("click_down", self.click_down)
         subscribe("click_up", self.click_up)
 

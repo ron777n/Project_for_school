@@ -2,20 +2,21 @@
 Sisyphus's game
 TODO Add MoonBase text to speech
 """
-import socket
 from typing import Dict
+import socket
 
 import pygame
 
+from Utils.events import event, post_event, create_event
+from Utils.Pygame.texting import start_typing
+from leveler import build_levels, join_levels
+from Utils.Pygame.Events import check_events
+from camera import CameraGroup
+from Utils.Pygame import Gui
+from Utils import timing
 import client
 import loader
 import player
-from Utils import timing
-from Utils.events import event, post_event, create_event
-from Utils.Pygame import Gui
-from Utils.Pygame.Events import check_events
-from Utils.Pygame.texting import start_typing
-import leveler
 import menu
 
 # window settings
@@ -25,14 +26,16 @@ HEIGHT = 900
 pygame.init()
 fps = 60
 fps_clock = pygame.time.Clock()
-levels = leveler.build_levels()
+levels = build_levels()
+level = join_levels(levels)
 
-world = pygame.display.set_mode((WIDTH, HEIGHT), pygame.SCALED)
+pygame.display.set_mode((WIDTH, HEIGHT), pygame.SCALED)
 pygame.display.set_caption("Sisyphus' game")
 icon = pygame.image.load("sprites/icon.png")
+
 pygame.display.set_icon(icon)
-back_drop_box = world.get_rect()
-back_drop = levels[0].image
+
+back_drop = level.image
 
 events = ("player_start_move",)
 
@@ -110,16 +113,16 @@ def key_down(normal, _special_keys, key):
 
 
 @event
-def key_up(normal, _special_keys, _key):
+def key_up(_normal, _special_keys, key):
     """
     when user starts pressing a button
-    :param normal: char representing the key
+    :param _normal: char representing the key
     :param _special_keys: shift, ctrl, etc
-    :param _key: value of the key by pygame
+    :param key: value of the key by pygame
     """
-    if normal == 'd' and main_player.moving == 1:
+    if key in (pygame.K_d, pygame.K_RIGHT) and main_player.moving == 1:
         main_player.moving = 0
-    if normal == 'a' and main_player.moving == -1:
+    if key in (pygame.K_a, pygame.K_LEFT) and main_player.moving == -1:
         main_player.moving = 0
 
 
@@ -162,20 +165,20 @@ def on_login(_url, client_id, user_name):
     users_data[client_id] = user_name
 
 
-window = menu.GuiWindow(pygame.display.get_window_size())
+window = menu.GuiWindow()
 
 
 def load_window(time_passage=True):
     """
     just loads the window, if True passes time
     """
-    world.blit(back_drop, back_drop_box)
-    # pygame.draw.rect(world, (0, 255, 0), main_player.rect)
+    display = pygame.display.get_surface()
+    pygame.draw.rect(display, (0, 255, 0), main_player.rect)
     if time_passage:
         main_player.update()
-    window.screen.draw(world)
-    player_list.draw(world)  # draw player
-    generic_gui.draw(world)
+    camera_group.custom_draw(main_player.rect)  # draw player
+    generic_gui.draw(display)
+    window.screen.draw(display)
 
     pygame.display.flip()
     try:
@@ -210,12 +213,12 @@ chat = Gui.ScrollableText((100, 400), (200, 300))
 chat.add(Gui.Text("HELLO world", (255, 0, 0)))
 generic_gui.add(chat)
 
-player_list = pygame.sprite.Group()
-main_player = player.Player(levels[0], 600, 850)
-player_list.add(main_player)
+camera_group = CameraGroup(back_drop)
+main_player = player.Player(level, 600, level.shape[1] - 60)
+camera_group.add(main_player)
 
-# window.screen = "main_menu"
-load_window(True)
+window.screen = "main_menu"
+load_window()
 
 
 running = True

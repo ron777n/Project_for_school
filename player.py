@@ -58,7 +58,7 @@ class Player(pygame.sprite.Sprite):
     GRAVITY = 0.6
     CHANGE_RUN_IMAGE = 200
 
-    def __init__(self, level, start_x=340, start_y=240, sprite_path=r"sprites/player_sprites/dvir.png"):
+    def __init__(self, level, start_x=340, start_y=240, sprite_path=r"sprites/player_sprites/gal.png"):
         super().__init__()
         self.images = load_sheet(sprite_path)
 
@@ -73,7 +73,7 @@ class Player(pygame.sprite.Sprite):
 
         # Position and direction
         self.pos = Vector2((start_x, start_y))
-        self.rect = self.images[6].get_rect(midbottom=self.pos)
+        self.rect = self.images[2].get_rect(midbottom=self.pos)
         self.run_image = self.images[5]
         FunctionedTimer(self.CHANGE_RUN_IMAGE, self._change_run, reset=True).reset()
         self.vel = Vector2(0, 0)
@@ -151,7 +151,7 @@ class Player(pygame.sprite.Sprite):
         """
         moves the player fast in one direction
         """
-        if not self.dash_cool_down.check():
+        if not self.dash_cool_down.check() and not self.is_grounded:
             self.vel = Vector2(RUN_SPEED*2*left, self.vel.y/2)
             self.rect.midbottom = self.pos
             self.timed_dash.reset()
