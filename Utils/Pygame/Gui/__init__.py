@@ -48,6 +48,8 @@ class Text(pygame.Surface):
             surface.blit(self, self.get_rect(center=(surface.get_width() / 2, surface.get_height() / 2)))
         elif mode[0] == "left":
             surface.blit(self, self.get_rect(midleft=(mode[1], surface.get_height() / 2)))
+        elif mode[0] == "top_left":
+            surface.blit(self, self.get_rect(midleft=(mode[1], mode[2])))
 
     def wrap(self, size):
         """

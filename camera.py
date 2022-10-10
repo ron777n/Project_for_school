@@ -10,21 +10,61 @@ class CameraGroup(pygame.sprite.Group):
     """
     all you want to display in the camera
     """
+    zoom_cap = (1, 10)
 
-    def __init__(self, back_ground: pygame.surface.Surface):
+    def __init__(self, back_ground: pygame.surface.Surface, cam_size=(1200, 1000)):
         super().__init__()
+        self.ground_surface = back_ground
+        self.og_cam_size = cam_size
+        if not pygame.get_init():
+            self.initiated = False
+            return
+        self.initiated = True
         self.display_surface = pygame.display.get_surface()
-        self.cam_size = self.display_surface.get_size()
+        self._cam_size = self.og_cam_size
+        self.display_size = self.display_surface.get_size()
 
         # camera offset
         self.offset = pygame.math.Vector2()
-        self.half_w = self.display_surface.get_width() // 2
-        self.half_h = self.display_surface.get_height() // 2
+        self.half_w = self._cam_size[0] // 2
+        self.half_h = self._cam_size[1] // 2
 
         # ground
-        self.ground_surface = back_ground
         self.map_size = self.ground_surface.get_size()
         self.ground_rect = self.ground_surface.get_rect(topleft=(0, 0))
+        self._image = pygame.Surface(self._cam_size)
+        self._image.fill("#71ddee")
+        self._zoom: float = 1.0
+
+    @property
+    def zoom(self):
+        """
+        sets the cam_size and clamps it to the zoom_cap
+        """
+        return self._zoom
+
+    @zoom.setter
+    def zoom(self, value):
+        if value > self.zoom_cap[1] or value < self.zoom_cap[0]:
+            return
+        self.cam_size = (self.og_cam_size[0] / value, self.og_cam_size[1] / value)
+        self._zoom = value
+
+    @property
+    def cam_size(self):
+        """
+        egg
+        """
+        return self.cam_size
+
+    @cam_size.setter
+    def cam_size(self, value):
+        value = tuple(value)
+        assert len(value) == 2, "bro... what kinda size is that?"
+        self._cam_size = value
+        self.half_w = self._cam_size[0] / 2
+        self.half_h = self._cam_size[1] / 2
+        self._image = pygame.Surface(self._cam_size)
 
     def center_target_camera(self, target: pygame.rect.Rect):
         """
@@ -35,19 +75,34 @@ class CameraGroup(pygame.sprite.Group):
         self.offset.y = min(target.centery, self.map_size[1] - self.half_h) - self.half_h
         self.offset.y = max(self.offset.y, 0)
 
-    def custom_draw(self, snapped):
+    def snap(self, target: pygame.Rect):
         """
-        draws everything
+        snaps the camera to the center of a target, does not keep it snapped
         """
-        self.center_target_camera(snapped)
+        self.center_target_camera(target)
         # ground
-        ground_offset = self.ground_rect.topleft - self.offset
-        self.display_surface.blit(self.ground_surface, ground_offset)
 
+    def update(self):
+        """
+        egg
+        """
+        if not self.initiated:
+            self.__init__()
+            return
+        self._image.fill("#71ddee")
+        ground_offset = self.ground_rect.topleft - self.offset
+        self._image.blit(self.ground_surface, ground_offset)
         # active elements
         for sprite in sorted(self.sprites(), key=lambda sprite_: sprite_.rect.centery):
             offset_pos = sprite.rect.topleft - self.offset
-            self.display_surface.blit(sprite.image, offset_pos)
+            self._image.blit(sprite.image, offset_pos)
+
+    def draw(self, **kwargs):
+        """
+        draws everything
+        """
+        img = pygame.transform.scale(self._image, self.display_size)
+        self.display_surface.blit(img, (0, 0))
 
 
 class CameraMark(pygame.sprite.Sprite):
@@ -56,8 +111,8 @@ class CameraMark(pygame.sprite.Sprite):
     """
     def __init__(self, target: pygame.rect.Rect):
         super().__init__()
-        self.image = pygame.surface.Surface((100, 100))
-        self.image.fill((255, 0, 0))
+        self.image = pygame.transform.scale(pygame.image.load("sprites/camera_icon.png"), (100, 100))
+        # self.image.fill((255, 0, 0))
         self.rect = target
 
 
@@ -90,13 +145,19 @@ def main():
                     cam_pos.x = max(cam_pos.x - 100, 0)
                 elif event.key == pygame.K_RIGHT:
                     cam_pos.x = min(cam_pos.x + 100, width - 100)
+                elif event.key in (pygame.K_EQUALS, pygame.K_PLUS):
+                    camera_group.zoom *= 1.5
+                elif event.key in (pygame.K_MINUS, pygame.K_PLUS):
+                    camera_group.zoom /= 1.5
+
             elif event.type == pygame.KEYUP:
                 pass
 
         screen.fill("#71ddee")
 
         camera_group.update()
-        camera_group.custom_draw(cam_pos)
+        camera_group.snap(cam_pos)
+        camera_group.draw()
 
         pygame.display.update()
         clock.tick()

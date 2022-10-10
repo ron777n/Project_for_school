@@ -1,16 +1,14 @@
 """
 everything player
 """
-import pygame
+import pymunk
+
+from Utils.timing import Timer, FunctionedTimer, tick, dt
 from pygame.math import Vector2
 import leveler
-from Utils.timing import Timer, FunctionedTimer
-
-ACCELERATION = 0.3
-FRICTION = -0.10
-RUN_SPEED = 5
-TERMINAL_VELOCITY = 20
-GRAVITY = 0.6
+import physics
+import pygame
+import pymunk.pygame_util
 
 
 def cycle_generator(min_size, max_size):
@@ -44,200 +42,49 @@ def load_sheet(url):
     return images
 
 
-class Player(pygame.sprite.Sprite):
+class PhysicalPlayer(physics.objects.Solid):
     """
-    Spawn a player
+    fucks
     """
     MAX_JUMPS = 2
     TIMED_DASH = 300
-    DASH_COOL_DOWN = 3000
+    DASH_COOL_DOWN = 2000
     ACCELERATION = 0.3
     FRICTION = -0.10
-    RUN_SPEED = 5
-    TERMINAL_VELOCITY = 20
-    GRAVITY = 0.6
+    RUN_SPEED = 30
+    TERMINAL_VELOCITY = 200
     CHANGE_RUN_IMAGE = 200
+    mass = 10
 
-    def __init__(self, level, start_x=340, start_y=240, sprite_path=r"sprites/player_sprites/gal.png"):
-        super().__init__()
+    def __init__(self, space: pymunk.Space, pos, sprite_path=r"sprites/player_sprites/dvir.png"):
+        super().__init__(mass=100, moment=100)
+        self.turn = False
         self.images = load_sheet(sprite_path)
-
-        self.blocks = level.lines
-        self._level = level
-        self.get_run_frame = cycle_generator(5, 7)
+        self._image = self.images[0]
+        self.rect = self._image.get_rect(center=pos)
+        self.position = pos
+        self.jumps = self.MAX_JUMPS
         self.is_grounded = False
         self.bumped = False
-        self.turn = False
+        self.moving = 0
+        self.gravity = space.gravity
+        self.vel = Vector2()
+        self.velocity_func = self.player_velocity_func
+        self.get_run_frame = cycle_generator(5, 7)
+
         self.timed_dash = Timer(self.TIMED_DASH, False)
         self.dash_cool_down = Timer(self.DASH_COOL_DOWN, False)
-
-        # Position and direction
-        self.pos = Vector2((start_x, start_y))
-        self.rect = self.images[2].get_rect(midbottom=self.pos)
         self.run_image = self.images[5]
-        FunctionedTimer(self.CHANGE_RUN_IMAGE, self._change_run, reset=True).reset()
-        self.vel = Vector2(0, 0)
-        self.jumps = self.MAX_JUMPS
-        self._moving = 0
+        FunctionedTimer(self.CHANGE_RUN_IMAGE, self._change_run, reset=True)
+
+        shape = pymunk.Poly.create_box(self, (self.rect.size[0] * 0.7, self.rect.size[1] * 0.7))
+        shape.friction = 0.3
+        shape.elasticity = 0.5
+        shape.mass = self.mass
+        space.add(self, shape)
 
     def _change_run(self):
         self.run_image = self.images[next(self.get_run_frame)]
-
-    @property
-    def moving(self):
-        """
-        gets the direction, for the setter
-        """
-        return self._moving
-
-    @moving.setter
-    def moving(self, value):
-        if not value:
-            self._moving = value
-            if self.is_grounded:
-                self.land()
-                self.timed_dash.disable()
-        else:
-            self._moving = value
-
-    @property
-    def level(self):
-        """
-        gets level, made this for the setter
-        :return:
-        """
-        return self.level
-
-    @level.setter
-    def level(self, new_level: leveler.Level):
-        """
-        sets the level and updates the blocks
-        :param new_level: the new level
-        """
-        self.blocks = new_level.lines
-        self._level = new_level
-
-    def is_player_grounded(self):
-        """
-        checks if the player is above ground
-        :return: whether or not he is grounded
-        """
-        rect_ = self.rect.copy()
-        rect_.y += 1
-        for line in self.blocks:
-            if line.horizontal and rect_.colliderect(line.rect):
-                return True
-        return False
-
-    def move(self):
-        """
-        moves the player however the values allows
-        :return:
-        """
-        if self.is_grounded:
-            if not self.is_player_grounded():
-                self.is_grounded = False
-                return
-            if self.moving == -1:
-                self.vel = Vector2(-RUN_SPEED, 0)
-            elif self.moving == 1:
-                self.vel = Vector2(RUN_SPEED, 0)
-            else:
-                self.vel = Vector2(0, 0)
-
-        self.rect.midbottom = self.pos
-
-    def dash(self, left):
-        """
-        moves the player fast in one direction
-        """
-        if not self.dash_cool_down.check() and not self.is_grounded:
-            self.vel = Vector2(RUN_SPEED*2*left, self.vel.y/2)
-            self.rect.midbottom = self.pos
-            self.timed_dash.reset()
-            self.dash_cool_down.reset()
-
-    def check_collisions(self):
-        """
-        check collisions with the level shit
-        :return:
-        """
-        hits = pygame.sprite.spritecollide(self, self.blocks, False)
-        if not hits:
-            return
-        chosen_hit: leveler.Line = self.select_hit(hits)
-        if not chosen_hit:
-            return
-        if chosen_hit.horizontal:
-            if self.vel.y > 0:
-                self.rect.bottom = chosen_hit.rect.top
-                self.vel = Vector2(0, 0)
-                if not self.is_grounded:
-                    self.land()
-            else:
-                self.vel.y = 0 - self.vel.y / 2
-                self.rect.top = chosen_hit.end_pos[1] + 10  # TODO add bump sound effect
-
-        elif chosen_hit.vertical:
-            if not self.is_grounded:
-                self.vel.x = 0 - self.vel.x / 2
-                self.bumped = True
-            if not self.turn:
-                self.rect.right = chosen_hit.rect.left
-            else:
-                self.rect.left = chosen_hit.rect.right
-            if len(hits) > 1:
-                if self.is_player_grounded():
-                    self.land()
-        self.pos = self.rect.midbottom
-
-    def select_hit(self, hits):
-        """
-        selects a hit so that the check collisions wont have to do it on every one
-        :param hits: the hit boxes
-        :return: the hit that is important
-        """
-        if len(hits) == 1:
-            return hits[0]
-
-        if self.vel.y > 0:
-            return min(hits, key=lambda x: min(abs(self.rect.top - x.rect.bottom),
-                                               abs(self.rect.bottom - x.rect.top)) if x.horizontal else 1000)
-        return min(hits, key=lambda x: min(abs(self.rect.top - x.rect.bottom),
-                                           abs(self.rect.bottom - x.rect.top)) if x.horizontal else min(
-            abs(self.rect.left - x.rect.centerx), abs(self.rect.right - x.rect.centerx)))
-
-    def land(self):
-        """
-        sets everything for landing
-        """
-        self.is_grounded = True
-        self.vel = Vector2(0, 0)
-        self.bumped = False
-        self.jumps = self.MAX_JUMPS
-        self.dash_cool_down.disable()
-        self.timed_dash.disable()
-
-    def gravity_check(self):
-        """
-        sets the movement of y if player is not on ground
-        """
-        if not self.is_grounded and not self.timed_dash.check():
-            self.vel.y = min(self.vel.y + GRAVITY, TERMINAL_VELOCITY)
-
-    def update(self):
-        """
-        runs everything
-        """
-        self.pos = Vector2(self.rect.midbottom)
-        self.pos.x += self.vel.x
-        if not self.timed_dash.check():
-            self.pos.y += self.vel.y
-        self.gravity_check()
-        self.rect.midbottom = self.pos
-        self.check_collisions()
-        if self.moving:
-            self.move()
 
     @property
     def image(self):
@@ -247,13 +94,12 @@ class Player(pygame.sprite.Sprite):
         """
         # images = ('/run1.png', '/run2.png', '/run3.png', '/idle.png',
         #           '/fall.png', '/fallen.png', '/jump.png', '/oof.png', "/bob.png")
-        if self.vel.x < 0:
+        if self.velocity.x < -1:
             self.turn = True
-        elif self.vel.x > 0:
+        elif self.velocity.x > 1:
             self.turn = False
 
         running = False
-
         if self.moving and self.is_grounded:
             img_index = 0
             running = True
@@ -277,13 +123,146 @@ class Player(pygame.sprite.Sprite):
         return image_
 
     def jump(self):
+        # self.apply_impulse_at_local_point((0, -15*self.mass*5), (0, 0))
+        if self.jumps > 0:
+            self.vel.y = -70
+            self.jumps -= 1
+
+    @staticmethod
+    def player_velocity_func(body: 'PhysicalPlayer', gravity, damping, delta_time):
         """
-        jumps
-        :return:
+        e
         """
-        if not self.jumps:
-            return
-        # self.is_falling = False
-        self.is_grounded = False
-        self.vel.y = -15
-        self.jumps -= 1
+        pymunk.Body.update_velocity(body, gravity, damping, delta_time)
+        vel = body.vel
+        physical_vel = body.velocity
+        new_vel = Vector2(vel)
+        # if vel != (-1, -1) and vel != (0, -1):
+        #     print(vel)
+        if vel[0] == -1:
+            new_vel[0] = physical_vel[0]
+        if vel[1] == -1:
+            new_vel[1] = physical_vel[1]
+        if body.check_grounding()["body"] is not None:
+            if not body.is_grounded:
+                body.land()
+                body.is_grounded = True
+        else:
+            body.is_grounded = False
+        if body.timed_dash.check():
+            new_vel[1] = 0
+        else:
+            body.vel.update(-1)
+        new_vel = new_vel[0], new_vel[1]
+        body.velocity = new_vel
+        body.angular_velocity = 0.0
+        body.angle = 0
+
+    def check_grounding(self):
+        grounding = {
+            'normal': pymunk.Vec2d.zero(),
+            'penetration': 0.0,
+            'impulse': pymunk.Vec2d.zero(),
+            'position': pymunk.Vec2d.zero(),
+            'body': None,
+        }
+        gravity_unit_vector = pymunk.Vec2d(1, 0).rotated(self.space.gravity.angle)
+
+        def f(arbiter: pymunk.Arbiter):
+            n = arbiter.contact_point_set.normal
+
+            if gravity_unit_vector.y + 0.708 > n.y > gravity_unit_vector.y - 0.708 and \
+                    gravity_unit_vector.x + 0.708 > n.x > gravity_unit_vector.x - 0.708:
+                grounding['normal'] = n
+                grounding['penetration'] = -arbiter.contact_point_set.points[0].distance
+                grounding['body'] = arbiter.shapes[1].body
+                grounding['impulse'] = arbiter.total_impulse
+                grounding['position'] = arbiter.contact_point_set.points[0].point_b
+
+        self.each_arbiter(f)
+        return grounding
+
+    def update(self):
+        # super().update()
+        self.rect.center = self.position[0], self.position[1] - 20
+        if self.moving and self.is_grounded:
+            if self.moving == 1:
+                self.vel[0] = PhysicalPlayer.RUN_SPEED
+            elif self.moving == -1:
+                self.vel[0] = -PhysicalPlayer.RUN_SPEED
+            # else:
+            #     self.vel[0] = 0
+
+    def land(self):
+        # self.vel.update()
+        self.bumped = False
+        self.jumps = self.MAX_JUMPS
+        self.dash_cool_down.disable()
+        self.timed_dash.disable()
+
+    def dash(self, left):
+        if not self.dash_cool_down.check() and not self.is_grounded:
+            self.vel.x = PhysicalPlayer.RUN_SPEED * 2 * left
+            # self.rect.midbottom = self.position
+            self.timed_dash.reset()
+            self.dash_cool_down.reset()
+
+
+def main():
+    import camera
+    import leveler
+    levels = leveler.build_levels()
+    level = leveler.join_levels(levels)
+    pygame.init()
+    camera_size = (1200, 600)
+    pygame.display.set_mode(camera_size)
+    main_camera = camera.CameraGroup(level.image, camera_size)
+    player = PhysicalPlayer(level, (600, 500))
+    draw_options = pymunk.pygame_util.DrawOptions(pygame.display.get_surface())
+    main_camera.add(player)
+    double_click_timer = Timer(200)
+    while True:
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+            elif event.type == pygame.KEYDOWN:
+                normal = event.unicode
+                if event.key == 27:
+                    pygame.quit()
+                    exit()
+                double_click = double_click_timer.check(normal)
+                if normal == ' ':
+                    player.jump()
+                elif event.key in (pygame.K_d, pygame.K_RIGHT):
+                    if double_click:
+                        player.dash(1)
+                    player.moving = 1
+                elif event.key in (pygame.K_a, pygame.K_LEFT):
+                    if double_click:
+                        player.dash(-1)
+                    player.moving = -1
+                elif event.key in (pygame.K_MINUS, pygame.K_UNDERSCORE):
+                    main_camera.zoom /= 1.5
+                elif event.key in (pygame.K_PLUS, pygame.K_EQUALS):
+                    main_camera.zoom *= 1.5
+                double_click_timer.reset(normal)
+
+            elif event.type == pygame.KEYUP:
+                if event.key in (pygame.K_d, pygame.K_RIGHT) and player.moving == 1:
+                    player.moving = 0
+                elif event.key in (pygame.K_a, pygame.K_LEFT) and player.moving == -1:
+                    player.moving = 0
+
+        player.update()
+        main_camera.snap(player.rect)
+        main_camera.update()
+        main_camera.draw()
+        # level.debug_draw(draw_options)
+
+        pygame.display.update()
+        tick(60)
+        level.step(dt[0])
+
+
+if __name__ == '__main__':
+    main()

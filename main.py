@@ -2,13 +2,14 @@
 Sisyphus's game
 TODO Add MoonBase text to speech
 """
-from typing import Dict
+from typing import Dict, Optional
 import socket
 
 import pygame
 
-from Utils.events import event, post_event, create_event
+from Utils.events import event, create_event  # , post_event
 from Utils.Pygame.texting import start_typing
+from Utils.timing import dt
 from leveler import build_levels, join_levels
 from Utils.Pygame.Events import check_events
 from camera import CameraGroup
@@ -21,11 +22,10 @@ import menu
 
 # window settings
 WIDTH = 1200
-HEIGHT = 900
+HEIGHT = 700
 
 pygame.init()
 fps = 60
-fps_clock = pygame.time.Clock()
 levels = build_levels()
 level = join_levels(levels)
 
@@ -71,7 +71,10 @@ def submit_text_(message):
 
 
 @event
-def on_message(message, color, user_id):
+def on_message(message, _color, user_id):
+    """
+    called when user sends a message
+    """
     user = users_data[user_id] if user_id in users_data else user_id
     msg = f"<{user}>: {message}"
     chat.add(Gui.Text(msg, (255, 0, 0)))
@@ -107,6 +110,10 @@ def key_down(normal, _special_keys, key):
         if double_click:
             main_player.dash(-1)
         main_player.moving = -1
+    elif key in (pygame.K_MINUS, pygame.K_UNDERSCORE):
+        camera_group.zoom /= 1.5
+    elif key in (pygame.K_PLUS, pygame.K_EQUALS):
+        camera_group.zoom *= 1.5
     else:
         print(normal)
     double_click_timer.reset(normal)
@@ -175,16 +182,15 @@ def load_window(time_passage=True):
     display = pygame.display.get_surface()
     pygame.draw.rect(display, (0, 255, 0), main_player.rect)
     if time_passage:
-        main_player.update()
-    camera_group.custom_draw(main_player.rect)  # draw player
+        level.step(dt[0])
+    camera_group.update()
+    camera_group.snap(main_player.rect)
+    camera_group.draw()  # draw player
     generic_gui.draw(display)
     window.screen.draw(display)
 
     pygame.display.flip()
-    try:
-        fps_clock.tick(fps)
-    except KeyboardInterrupt:
-        post_event("quit")
+    timing.tick(fps)
 
 
 def use_protocol(protocol_name, *args, **kwargs):
@@ -204,7 +210,7 @@ chat_box = None
 server_protocols = loader.Load("protocols/server_protocol", "protocols/server_protocols")
 server_protocols.load_modules()
 
-main_client: client.Client | None = None
+main_client: Optional[client.Client] = None
 user_data: Dict[str, any] = {}
 
 generic_gui = pygame.sprite.Group()
@@ -214,7 +220,7 @@ chat.add(Gui.Text("HELLO world", (255, 0, 0)))
 generic_gui.add(chat)
 
 camera_group = CameraGroup(back_drop)
-main_player = player.Player(level, 600, level.shape[1] - 60)
+main_player = player.PhysicalPlayer(level, (600, level.shape[1] - 150))
 camera_group.add(main_player)
 
 window.screen = "main_menu"

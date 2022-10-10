@@ -3,6 +3,8 @@ timers, clocks and things
 """
 import pygame
 
+from Utils.events import post_event
+
 
 class Timer:
     """
@@ -36,6 +38,10 @@ class Timer:
 
 
 class FunctionedTimer(Timer):
+    """
+    FUCKED
+    """
+
     def __init__(self, timeout, function: callable = None, *args, reset=False, **kwargs):
         self._reset = reset
         self.function = function
@@ -52,6 +58,17 @@ class FunctionedTimer(Timer):
             if self._reset:
                 self.reset()
         return checked
+
+
+fps_clock = pygame.time.Clock()
+dt = [1.0]
+
+
+def tick(fps):
+    try:
+        dt[0] = fps_clock.tick(fps) / 100
+    except KeyboardInterrupt:
+        post_event("quit")
 
 
 functioned_timers: list[FunctionedTimer] = []

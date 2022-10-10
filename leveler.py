@@ -4,35 +4,46 @@ This makes a level with images and the level data
 from functools import reduce
 
 import pygame
+import pymunk
 from pygame.math import Vector2
-from typing import List, Union
+from typing import List, Union, Sequence
 import json
 import os
 
+import physics
 
-class Line(pygame.sprite.Sprite):
+
+class Line(physics.objects.Solid):
     """
     basic line so we could check collisions
-    start_pos, end_pos, color=(255, 0, 0), width=10
+    vertices[0], vertices[1], color=(255, 0, 0), width=10
     """
-
-    def __init__(self, start_pos, end_pos, color=(255, 0, 0), width=10):
-        super().__init__()
-        self.start_pos: Vector2 = start_pos
-        self.end_pos: Vector2 = end_pos
+    def __init__(self, vertices: Sequence, color=(255, 0, 0), width=10):
+        super().__init__(body_type=pymunk.Body.STATIC)
+        if len(vertices) == 2:
+            self.vertices = [(vertices[0][0] - width/2, vertices[0][1] - width/2),
+                    (vertices[0][0] + width/2, vertices[0][1] + width/2),
+                    (vertices[1][0] - width/2, vertices[1][1] - width/2),
+                    (vertices[1][0] + width / 2, vertices[1][1] + width / 2), ]
+        else:
+            self.vertices = vertices
+        self.shape = pymunk.Poly(self, self.vertices)
+        self.shape.elasticity = 0.2
+        self.shape.friction = 0.4
+        self.shape.elasticity = 0.5
         self.color = color
         self.width = width
-        self.rect = pygame.Rect(start_pos, (end_pos - start_pos) + Vector2(5, 5))
-        self.horizontal = self.start_pos.y == self.end_pos.y
-        self.vertical = self.start_pos.x == self.end_pos.x
+        self.size = (vertices[1][0] - vertices[0][0], vertices[1][1] - vertices[0][1])
+        self.rect = pygame.Rect(vertices[0], Vector2(self.size) + Vector2(5, 5))
 
 
-class Level:
+class Level(pymunk.Space):
     """
     the level, has image shape, game details and hatboxes for the floors and walls
     """
 
     def __init__(self, window: Union[str, tuple, pygame.Surface]):
+        super().__init__()
         self.image: pygame.Surface
         if isinstance(window, str):
             self.image: pygame.image = pygame.image.load(window)
@@ -49,6 +60,7 @@ class Level:
         self.coins = []
         self.has_progression_coins = False
         self.shape = self.image.get_width(), self.image.get_height()
+        self.gravity = (0, 10)
 
     def add_line(self, line: Line, draw=False):
         """
@@ -58,6 +70,7 @@ class Level:
         """
         if draw:
             pygame.draw.rect(self.image, (255, 0, 0), line.rect)
+        self.add(line, line.shape)
         self.lines.add(line)
 
 
@@ -74,7 +87,7 @@ def build_levels(draw=False) -> list[Level]:
     for image, level_lines in zip(level_images, data.values()):
         level1 = Level(f"level_images/{image}")
         for x1, y1, x2, y2 in level_lines:
-            line = Line(Vector2(min(x1, x2), min(y1, y2)), Vector2(max(x1, x2), max(y1, y2)))
+            line = Line(((x1, y1), (x2, y2)))
             level1.add_line(line, draw)
         levels.append(level1)
     return levels
@@ -85,16 +98,14 @@ def join_levels(levels: list[Level]) -> Level:
     takes a list of levels and returns it as one level
     """
     level_size = max(levels, key=lambda x: x.image.get_width()).image.get_width(), reduce(lambda a, b: a + b.image.get_height(), levels, 0)
-    print(level_size)
     new_level: Level = Level(level_size)
     for i, level in enumerate(levels, 1):
         line: Line
         l_shape = level.shape
         new_level.image.blit(level.image, (0, level_size[1]-i*level.image.get_height()))
         for line in level.lines:
-            new_line_start = line.start_pos + Vector2(0, level_size[1] - i* l_shape[1])
-            new_line_end = line.end_pos + Vector2(0, level_size[1] - i * l_shape[1])
-            new_level.add_line(Line(new_line_start, new_line_end, line.color, line.width))
+            new_vertices = [(vertex[0], vertex[1] + level_size[1] - i * l_shape[1]) for vertex in line.vertices]
+            new_level.add_line(Line(new_vertices, line.color, line.width))
 
     return new_level
 
