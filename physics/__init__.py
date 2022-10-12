@@ -58,7 +58,6 @@ def main():
                     camera_group.add(new_laser)
                 elif event.button == pygame.BUTTON_RIGHT:
                     egg.apply_impulse_at_local_point((0, 100), (0, 0))
-                    print(egg.shape.mass)
 
                     # player.angle_to(Vector2(event.pos))
 

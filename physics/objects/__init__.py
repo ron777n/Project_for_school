@@ -92,7 +92,7 @@ class Block(Solid):
     opacity: float = 1.0
 
     def __init__(self, space, rect, body_type=pymunk.Body.DYNAMIC):
-        super().__init__(body_type)
+        super().__init__(body_type=body_type)
         self.shape = pymunk.Poly.create_box(self, size=rect.size)
         self.create_shape(self.shape, rect)
         self._image = pygame.transform.scale(self._image, rect.size)
@@ -110,7 +110,7 @@ class Turret(Solid):
     head_image = pygame.image.load("sprites/objects/turret_head.png")
 
     def __init__(self, space, rect):
-        super().__init__(pymunk.Body.KINEMATIC)
+        super().__init__(body_type=pymunk.Body.KINEMATIC)
         self.position = rect.center
         self.shape = pymunk.Poly.create_box(self, size=rect.size)
         self.shape = self.create_shape(self.shape)

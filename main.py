@@ -114,8 +114,6 @@ def key_down(normal, _special_keys, key):
         camera_group.zoom /= 1.5
     elif key in (pygame.K_PLUS, pygame.K_EQUALS):
         camera_group.zoom *= 1.5
-    else:
-        print(normal)
     double_click_timer.reset(normal)
 
 
@@ -184,7 +182,6 @@ def load_window(time_passage=True):
     if time_passage:
         level.step(dt[0])
     camera_group.update()
-    camera_group.snap(main_player.rect)
     camera_group.draw()  # draw player
     generic_gui.draw(display)
     window.screen.draw(display)
@@ -204,6 +201,11 @@ def use_protocol(protocol_name, *args, **kwargs):
     main_client.send(protocol, protocol.format_message(*args, **kwargs))
 
 
+# @event
+# def mouse_moved(pos, motion, buttons, touch):
+#     main_player.direct(pygame.Vector2(camera_group.global_mouse))
+
+
 chat_box = None
 
 
@@ -219,9 +221,12 @@ chat = Gui.ScrollableText((100, 400), (200, 300))
 chat.add(Gui.Text("HELLO world", (255, 0, 0)))
 generic_gui.add(chat)
 
-camera_group = CameraGroup(back_drop)
-main_player = player.PhysicalPlayer(level, (600, level.shape[1] - 150))
+camera_group = CameraGroup(back_drop, (WIDTH, HEIGHT))
+main_player = player.Player(level, (600, level.shape[1] - 120))
+main_player.target = camera_group.mouse_rect
 camera_group.add(main_player)
+camera_group.target = main_player
+# main_player.coolify()
 
 window.screen = "main_menu"
 load_window()

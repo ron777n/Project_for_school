@@ -34,7 +34,7 @@ def check_events(events_list):
         elif pygame_event.type == pygame.MOUSEBUTTONUP:
             post_event("click_up", pygame_event.pos, pygame_event.button)
         elif pygame_event.type == pygame.MOUSEMOTION:
-            pass
+            post_event("mouse_moved", pygame_event.pos, pygame_event.rel, pygame_event.buttons, pygame_event.touch)
         elif pygame_event.type == pygame.MOUSEWHEEL:
             pass
         elif pygame_event.type == pygame.TEXTINPUT:

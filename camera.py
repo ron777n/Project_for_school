@@ -4,6 +4,7 @@ a moving camera
 import pygame
 
 from leveler import build_levels, join_levels
+from Utils.timing import dt
 
 
 class CameraGroup(pygame.sprite.Group):
@@ -11,18 +12,29 @@ class CameraGroup(pygame.sprite.Group):
     all you want to display in the camera
     """
     zoom_cap = (1, 10)
+    zoom_time = 10
 
-    def __init__(self, back_ground: pygame.surface.Surface, cam_size=(1200, 1000)):
-        super().__init__()
+    def __init__(self, back_ground: pygame.surface.Surface, cam_size=(1200, 1000), *sprites):
+        super().__init__(*sprites)
+        # real basics
+        self._target = None
         self.ground_surface = back_ground
         self.og_cam_size = cam_size
         if not pygame.get_init():
             self.initiated = False
             return
         self.initiated = True
+
+        # basics
         self.display_surface = pygame.display.get_surface()
         self._cam_size = self.og_cam_size
         self.display_size = self.display_surface.get_size()
+
+        # boy he zooming
+        self.last_zoom = pygame.Vector2(1)
+        self.dest_zoom = pygame.Vector2(1)
+        self.lerp_amount = 0
+        self._zoom: float = 1.0
 
         # camera offset
         self.offset = pygame.math.Vector2()
@@ -34,21 +46,50 @@ class CameraGroup(pygame.sprite.Group):
         self.ground_rect = self.ground_surface.get_rect(topleft=(0, 0))
         self._image = pygame.Surface(self._cam_size)
         self._image.fill("#71ddee")
-        self._zoom: float = 1.0
+
+        # mouse
+        self.mouse_rect = pygame.Rect((0, 0), (1, 1))
+
+    @property
+    def global_mouse(self):
+        x, y = self.mouse
+        x = self.offset.x + x // self._zoom
+        y = self.offset.y + y // self._zoom
+        return round(x), round(y)
+
+    @property
+    def mouse(self):
+        return pygame.mouse.get_pos()
+
+    @property
+    def target(self):
+        return self._target
+
+    @target.setter
+    def target(self, value):
+        if hasattr(value, "rect"):
+            value = value.rect
+        self.snap(value)
+        self._target = value
+
+    @target.deleter
+    def target(self):
+        self._target = None
 
     @property
     def zoom(self):
         """
         sets the cam_size and clamps it to the zoom_cap
         """
-        return self._zoom
+        return self.dest_zoom.x
 
     @zoom.setter
     def zoom(self, value):
         if value > self.zoom_cap[1] or value < self.zoom_cap[0]:
             return
-        self.cam_size = (self.og_cam_size[0] / value, self.og_cam_size[1] / value)
-        self._zoom = value
+        self.last_zoom.update(self._zoom)
+        self.dest_zoom.update(value)
+        self.lerp_amount = 0
 
     @property
     def cam_size(self):
@@ -66,7 +107,7 @@ class CameraGroup(pygame.sprite.Group):
         self.half_h = self._cam_size[1] / 2
         self._image = pygame.Surface(self._cam_size)
 
-    def center_target_camera(self, target: pygame.rect.Rect):
+    def snap(self, target: pygame.rect.Rect):
         """
         centers the camera to an object
         """
@@ -75,20 +116,19 @@ class CameraGroup(pygame.sprite.Group):
         self.offset.y = min(target.centery, self.map_size[1] - self.half_h) - self.half_h
         self.offset.y = max(self.offset.y, 0)
 
-    def snap(self, target: pygame.Rect):
-        """
-        snaps the camera to the center of a target, does not keep it snapped
-        """
-        self.center_target_camera(target)
-        # ground
-
     def update(self):
         """
         egg
         """
         if not self.initiated:
-            self.__init__()
+            self.__init__(self.ground_surface, self.og_cam_size, self.sprites())
             return
+        if self._zoom != self.dest_zoom.x:
+            self.lerp_amount = min(self.lerp_amount + dt[0]/self.zoom_time, 1)
+            self._zoom = self.last_zoom.lerp(self.dest_zoom, self.lerp_amount).x
+            self.cam_size = (self.og_cam_size[0] / self._zoom, self.og_cam_size[1] / self._zoom)
+        if self._target is not None:
+            self.snap(self._target)
         self._image.fill("#71ddee")
         ground_offset = self.ground_rect.topleft - self.offset
         self._image.blit(self.ground_surface, ground_offset)
@@ -96,6 +136,8 @@ class CameraGroup(pygame.sprite.Group):
         for sprite in sorted(self.sprites(), key=lambda sprite_: sprite_.rect.centery):
             offset_pos = sprite.rect.topleft - self.offset
             self._image.blit(sprite.image, offset_pos)
+        self.mouse_rect.center = self.global_mouse
+        super().update()
 
     def draw(self, **kwargs):
         """
