@@ -8,9 +8,10 @@ import pygame
 import pymunk
 import pymunk.pygame_util
 from pygame.math import Vector2, Vector3
+from pymunk import vec2d
 
 from Utils.Pygame.Gui import Text
-from Utils.timing import dt, tick
+from Utils.timing import dt, tick, Timer
 
 
 class BaseObject(pygame.sprite.Sprite, pymunk.Body):
@@ -22,11 +23,40 @@ class BaseObject(pygame.sprite.Sprite, pymunk.Body):
     reflectivity: Optional[float]
     temperature: Optional[float]
     melting_point: Optional[float]
+    mass: Optional[float] = None
+    density: Optional[float] = None
+    color: Optional[tuple[int, int, int, int]] = None
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         super().__init__()
         pymunk.Body.__init__(self, **kwargs)
         self.rect: pygame.rect.Rect
+
+    @classmethod
+    def create_shape(cls, shape, rect: Optional[pygame.Rect] = None, *args):
+        """
+        creates a basic shape for the class.
+        :param shape:
+        :param rect:
+        """
+        if cls.color is not None:
+            shape.color = cls.color
+        if cls.mass is not None:
+            shape.mass = cls.mass
+        elif rect is not None and cls.density:
+            shape.mass = Vector2(rect.size).length() * cls.density
+        else:
+            shape.mass = 10
+        return shape
+
+    def update(self):
+        """
+        sets the image to the physical body of the object
+        """
+        self.image = pygame.transform.rotate(self._image, -self.rotation_vector.angle_degrees)
+        if self.rect.size != (img_rect_size := self.image.get_rect().size):
+            self.rect.size = Vector2(Vector2(img_rect_size) + Vector2(self.rect.size)) // 2
+        self.rect.center = self.position
 
 
 class Solid(BaseObject):
@@ -41,8 +71,19 @@ class Solid(BaseObject):
     density: Optional[float] = None
     color: Optional[tuple[int, int, int, int]] = None
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    @classmethod
+    def create_shape(cls, shape, rect: Optional[pygame.Rect] = None, *args):
+        """
+        creates a basic shape for the class.
+        :param shape:
+        :param rect:
+        """
+        shape = super().create_shape(shape, rect, *args)
+        if cls.elasticity is not None:
+            shape.elasticity = cls.elasticity
+        if cls.friction is not None:
+            shape.friction = cls.friction
+        return shape
 
     def update(self):
         """
@@ -52,27 +93,6 @@ class Solid(BaseObject):
         if self.rect.size != (img_rect_size := self.image.get_rect().size):
             self.rect.size = Vector2(Vector2(img_rect_size) + Vector2(self.rect.size)) // 2
         self.rect.center = self.position
-
-    @classmethod
-    def create_shape(cls, shape, rect: Optional[pygame.Rect] = None):
-        """
-        creates a basic shape for the class.
-        :param shape:
-        :param rect:
-        """
-        if cls.color is not None:
-            shape.color = cls.color
-        if cls.elasticity is not None:
-            shape.elasticity = cls.elasticity
-        if cls.friction is not None:
-            shape.friction = cls.friction
-        if cls.mass is not None:
-            shape.mass = cls.mass
-        elif rect is not None and cls.density:
-            shape.mass = Vector2(rect.size).length() * cls.density
-        else:
-            shape.mass = 10
-        return shape
 
 
 class Block(Solid):
@@ -160,9 +180,11 @@ class Laser(BaseObject):
     temperature: float = 1000.0
     melting_point: float = 0.0
     opacity: float = 0.5
+    elasticity = 1
+    mass = 1.01
 
-    def __init__(self, space, start_point: Vector2, direction: Vector2, speed: int = 10, ):
-        super().__init__(body_type=pymunk.Body.KINEMATIC)
+    def __init__(self, space, start_point: Vector2, direction: Vector2, speed: int = 100):
+        super().__init__()
         self.start_point = start_point
         self.speed = speed
         self.image = pygame.transform.rotate(self._image, direction.angle_to(Vector2(0, 0)))
@@ -171,14 +193,28 @@ class Laser(BaseObject):
         self.position = start_point
         direction.scale_to_length(speed)
         self.velocity = tuple(direction)
-        shape = pymunk.Poly.create_box(self, (10, 10))
-        space.add(self, shape)
+        self.shape = pymunk.Poly.create_box(self, (1, 1))
+        self.shape = self.create_shape(self.shape)
+        self.shape.elasticity = self.elasticity
+        space.add(self, self.shape)
+        self.velocity_func = self.velocity_fun
+        self.death = Timer(4000, True)
 
     def update(self):
-        """
-        updates the position of the image to the position of the physical laser
-        """
+        if not self.death.check():
+            self.kill()
+            self.space.remove(self.shape, self)
+            return
+        self.image = pygame.transform.rotate(self._image, -self.velocity.angle_degrees)
+        if self.rect.size != (img_rect_size := self.image.get_rect().size):
+            self.rect.size = Vector2(Vector2(img_rect_size) + Vector2(self.rect.size)) // 2
         self.rect.center = self.position
+
+    @staticmethod
+    def velocity_fun(body: 'Laser', gravity, damping, delta_time):
+        pymunk.Body.update_velocity(body, (0, 0), damping, delta_time)
+        body.angle = 0
+        body.velocity = body.velocity.scale_to_length(body.speed)
 
 
 def main():

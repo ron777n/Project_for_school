@@ -9,9 +9,10 @@ import pymunk
 import pymunk.pygame_util
 from pygame.math import Vector2
 
+from physics import moving_objects
 from Utils.timing import tick, dt
-from . import objects
 from Utils.Pygame.Gui import Text
+from . import objects
 
 
 def main():
@@ -34,13 +35,15 @@ def main():
     block_top = objects.Block(space, pygame.rect.Rect(50, 0, 1050, 100), True)
     block_bottom = objects.Block(space, pygame.rect.Rect(50, 550, 1050, 100), True)
     egg = objects.Block(space, pygame.rect.Rect(300, 300, 100, 100), False)
+    new_egg = moving_objects.LineWay(space, pygame.rect.Rect(500, 300, 100, 100))
 
     # stationary_blocks = pygame.sprite.Group(block_left, block_right, block_top, block_bottom)
-    camera_group.add(block_left, block_right, block_top, block_bottom, egg)
+    camera_group.add(block_left, block_right, block_top, block_bottom)
+    camera_group.add(egg, new_egg)
 
     camera_group.add(player)
 
-    # draw_options = pymunk.pygame_util.DrawOptions(screen)
+    draw_options = pymunk.pygame_util.DrawOptions(screen)
 
     while True:
         for event in pygame.event.get():
@@ -57,7 +60,7 @@ def main():
                     # new_laser.apply_impulse_at_local_point((100, 100), (0, 0))
                     camera_group.add(new_laser)
                 elif event.button == pygame.BUTTON_RIGHT:
-                    egg.apply_impulse_at_local_point((0, 100), (0, 0))
+                    egg.apply_impulse_at_local_point((1000, -1000), (0, 0))
 
                     # player.angle_to(Vector2(event.pos))
 
@@ -68,7 +71,7 @@ def main():
         camera_group.update()
         camera_group.draw(screen)
 
-        # space.debug_draw(draw_options)
+        space.debug_draw(draw_options)
 
         fps = clock.get_fps()
         fps = Text(f"{fps:.2f}FPS", (0, 0, 0))

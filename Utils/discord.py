@@ -34,7 +34,8 @@ def status(single: bool, floor, ):
     """
     if connection_thread.is_alive():
         return
-    RTC.update(state="playing single player" if single else "playing multi-player, somehow?", details=f"floor: {floor}",
+    RTC.update(state="playing single player" if single else "playing multi-player, somehow?",
+               details=f"floor: {floor}" if not isinstance(floor, float) or round(floor) != 43 else "last_floor",
                start=started,
                large_image="sisyphus_game",
                buttons=[{"label": "want to play too?", "url": "https://github.com/ron777n/Project_for_school"}])

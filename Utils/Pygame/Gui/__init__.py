@@ -2,6 +2,7 @@
 this is for any gui utils i might have
 """
 import textwrap
+import time
 
 import pygame
 from Utils.events import get_subscribers, post_event, create_event, clear_event, unsubscribe
@@ -32,6 +33,7 @@ class Text(pygame.Surface):
         font_size = self.font.size(max(self.lines, key=lambda x: self.font.size(x)[0]))
         self.size = font_size[0], font_size[1] * len(self.lines)
         super().__init__(self.size, pygame.SRCALPHA)
+        # super().__init__(self.size)
         for i, line in enumerate(self.lines):
             rect = self.get_rect()
             rect.top = font_size[1] * i
@@ -51,7 +53,7 @@ class Text(pygame.Surface):
         elif mode[0] == "top_left":
             surface.blit(self, self.get_rect(midleft=(mode[1], mode[2])))
 
-    def wrap(self, size):
+    def wrap(self, size) -> 'Text':
         """
         returns a new text containing the same text and color with different font size(not yet) or new lines
         :param size:
@@ -337,9 +339,9 @@ class ScrollableText(BaseGui):
         text: Text
         for text in texts:
             text = text.wrap(self.size)
-            # self.image.subsurface()
-            # self.image = self.image.scroll(0, -text.get_height())
-            self.image.blit(text, (0, self.size[1]-text.get_height()))
+            for i in range(text.size[1]//29):
+                self.image.scroll(0, -29)  # for some reason it "duplicates" the image if scrolled too much
+            self.image.blit(text, (0, 271-text.size[1]))
 
 
 def grid_layout(size, widgets: list[list[BaseGui]]):

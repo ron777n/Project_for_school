@@ -227,7 +227,7 @@ user_data: Dict[str, any] = {}
 generic_gui = pygame.sprite.Group()
 
 chat = Gui.ScrollableText((100, 400), (200, 300))
-chat.add(Gui.Text("HELLO world", (255, 0, 0)))
+# chat.add(Gui.Text("HELLO world", (255, 0, 0)))
 generic_gui.add(chat)
 
 # camera and main player
