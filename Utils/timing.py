@@ -21,7 +21,7 @@ class Timer:
 
     def check(self, specific=None):
         """
-        returns true if timer was reset for the specific event before the timeout given
+        returns true timer hasn't ended
         """
         now = pygame.time.get_ticks()
         return now - self._specifics.get(specific, self.timeout) <= self.timeout
@@ -33,6 +33,10 @@ class Timer:
         self._specifics[specific] = pygame.time.get_ticks()
 
     def disable(self, specific=None):
+        """
+        disables/deactivates a timer
+        :param specific:
+        """
         if specific in self._specifics:
             del self._specifics[specific]
 
@@ -51,6 +55,13 @@ class FunctionedTimer(Timer):
         functioned_timers.append(self)
 
     def check(self, _=None):
+        """
+        returns True if timer hasn't ended, and calls its function if it has None as well as reset it
+        this is being run in the pygame event loop regardless so you don't have to call this manually unless
+        you want to actually check it
+        :param _:
+        :return:
+        """
         checked = super().check()
         if not checked:
             if self.function is not None:
@@ -65,10 +76,16 @@ dt = [1.0]
 
 
 def tick(fps):
+    """
+    use this for the fps, it also sets the delta time so important
+    :param fps:
+    :return:
+    """
     try:
         dt[0] = fps_clock.tick(fps) / 100
     except KeyboardInterrupt:
         post_event("quit")
+    return dt[0]
 
 
 functioned_timers: list[FunctionedTimer] = []

@@ -7,14 +7,17 @@ import socket
 
 import pygame
 
+from Good_looking.Particles import ParticleEmitter
+from Good_looking.Particles.falling import RainParticle
 from Utils.events import event, create_event  # , post_event
 from Utils.Pygame.texting import start_typing
-from Utils.timing import dt
+from Utils.timing import dt, Timer
 from leveler import build_levels, join_levels
 from Utils.Pygame.Events import check_events
 from camera import CameraGroup
 from Utils.Pygame import Gui
 from Utils import timing
+from Utils.discord import status
 import client
 import loader
 import player
@@ -185,6 +188,9 @@ def load_window(time_passage=True):
     camera_group.draw()  # draw player
     generic_gui.draw(display)
     window.screen.draw(display)
+    if not discord_timer.check():
+        update_discord()
+        discord_timer.reset()
 
     pygame.display.flip()
     timing.tick(fps)
@@ -201,36 +207,40 @@ def use_protocol(protocol_name, *args, **kwargs):
     main_client.send(protocol, protocol.format_message(*args, **kwargs))
 
 
-# @event
-# def mouse_moved(pos, motion, buttons, touch):
-#     main_player.direct(pygame.Vector2(camera_group.global_mouse))
+def update_discord():
+    """
+    sets the discord status
+    """
+    status(True, round((level.shape[1] - main_player.rect.centery)/900, 2))
 
 
-chat_box = None
+discord_timer = Timer(3000, True)
 
-
+# multi_player things
 server_protocols = loader.Load("protocols/server_protocol", "protocols/server_protocols")
 server_protocols.load_modules()
 
 main_client: Optional[client.Client] = None
 user_data: Dict[str, any] = {}
 
+# gui
 generic_gui = pygame.sprite.Group()
 
 chat = Gui.ScrollableText((100, 400), (200, 300))
 chat.add(Gui.Text("HELLO world", (255, 0, 0)))
 generic_gui.add(chat)
 
+# camera and main player
 camera_group = CameraGroup(back_drop, (WIDTH, HEIGHT))
-main_player = player.Player(level, (600, level.shape[1] - 120))
-main_player.target = camera_group.mouse_rect
+main_player = player.Player(level, (600, level.shape[1] - 120), looking=camera_group.mouse_rect)
 camera_group.add(main_player)
 camera_group.target = main_player
+raining_effect = ParticleEmitter(RainParticle, camera_group, Timer(10), camera_group, True, 3)
+camera_group.add(raining_effect)
 # main_player.coolify()
 
 window.screen = "main_menu"
 load_window()
-
 
 running = True
 while running:

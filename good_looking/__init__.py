@@ -1,4 +1,0 @@
-"""
-e
-"""
-from . import particles

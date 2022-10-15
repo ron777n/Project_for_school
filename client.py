@@ -23,6 +23,7 @@ class Client:
     """
     the client class
     """
+
     def __init__(self, ):
         self.connected = False
         subscribe("on_connect", self.on_connect)
@@ -61,7 +62,6 @@ class Client:
             pass
         self.data["udp_socket"].sendto(message, (IP, UDP_PORT))
         self.connected = True
-
 
     def receive_messages(self, socket_: socket.socket, socket_type):
         """
@@ -120,4 +120,3 @@ class Client:
             self.client_tcp_socket.sendall(protocol_answer)
         else:
             self.client_udp_socket.sendto(protocol_answer, (IP, UDP_PORT))
-

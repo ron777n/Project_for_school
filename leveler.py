@@ -19,7 +19,7 @@ class Line(physics.objects.Solid):
     vertices[0], vertices[1], color=(255, 0, 0), width=10
     """
 
-    def __init__(self, vertices: Sequence, color=(255, 0, 0), width=10):
+    def __init__(self, vertices: Sequence, color=(255, 0, 0), width=10, slippery=False):
         super().__init__(body_type=pymunk.Body.STATIC)
         if len(vertices) == 2:
             self.vertices = [(vertices[0][0] - width / 2, vertices[0][1] - width / 2),
@@ -29,8 +29,7 @@ class Line(physics.objects.Solid):
         else:
             self.vertices = vertices
         self.shape = pymunk.Poly(self, self.vertices)
-        self.shape.elasticity = 0.2
-        self.shape.friction = 0.95
+        self.shape.friction = 0.3 if slippery else 0.95
         self.shape.elasticity = 0.5
         self.color = color
         self.width = width
@@ -107,7 +106,7 @@ def join_levels(levels: list[Level]) -> Level:
         new_level.image.blit(level.image, (0, level_size[1] - i * level.image.get_height()))
         for line in level.lines:
             new_vertices = [(vertex[0], vertex[1] + level_size[1] - i * l_shape[1]) for vertex in line.vertices]
-            new_level.add_line(Line(new_vertices, line.color, line.width))
+            new_level.add_line(Line(new_vertices, line.color, line.width, i >= 20))
 
     return new_level
 

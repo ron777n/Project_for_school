@@ -4,10 +4,11 @@ a moving camera
 import pygame
 
 from leveler import build_levels, join_levels
+from Utils.Pygame.targeting import BoundTracker
 from Utils.timing import dt
 
 
-class CameraGroup(pygame.sprite.Group):
+class CameraGroup(pygame.sprite.Group, BoundTracker):
     """
     all you want to display in the camera
     """
@@ -20,6 +21,9 @@ class CameraGroup(pygame.sprite.Group):
         self._target = None
         self.ground_surface = back_ground
         self.og_cam_size = cam_size
+        self.map_size = self.ground_surface.get_size()
+        self.ground_rect = self.ground_surface.get_rect(topleft=(0, 0))
+        BoundTracker.__init__(self, self.ground_surface.get_size(), None, ((0, 0), cam_size))
         if not pygame.get_init():
             self.initiated = False
             return
@@ -42,8 +46,6 @@ class CameraGroup(pygame.sprite.Group):
         self.half_h = self._cam_size[1] // 2
 
         # ground
-        self.map_size = self.ground_surface.get_size()
-        self.ground_rect = self.ground_surface.get_rect(topleft=(0, 0))
         self._image = pygame.Surface(self._cam_size)
         self._image.fill("#71ddee")
 
@@ -69,8 +71,8 @@ class CameraGroup(pygame.sprite.Group):
     def target(self, value):
         if hasattr(value, "rect"):
             value = value.rect
-        self.snap(value)
         self._target = value
+        self.snap()
 
     @target.deleter
     def target(self):
@@ -103,20 +105,12 @@ class CameraGroup(pygame.sprite.Group):
         value = tuple(value)
         assert len(value) == 2, "bro... what kinda size is that?"
         self._cam_size = value
+        self.size = value
         self.half_w = self._cam_size[0] / 2
         self.half_h = self._cam_size[1] / 2
         self._image = pygame.Surface(self._cam_size)
 
-    def snap(self, target: pygame.rect.Rect):
-        """
-        centers the camera to an object
-        """
-        self.offset.x = min(target.centerx, self.map_size[0] - self.half_w) - self.half_w
-        self.offset.x = max(self.offset.x, 0)
-        self.offset.y = min(target.centery, self.map_size[1] - self.half_h) - self.half_h
-        self.offset.y = max(self.offset.y, 0)
-
-    def update(self):
+    def update(self, *args):
         """
         egg
         """
@@ -128,14 +122,17 @@ class CameraGroup(pygame.sprite.Group):
             self._zoom = self.last_zoom.lerp(self.dest_zoom, self.lerp_amount).x
             self.cam_size = (self.og_cam_size[0] / self._zoom, self.og_cam_size[1] / self._zoom)
         if self._target is not None:
-            self.snap(self._target)
+            self.snap()
         self._image.fill("#71ddee")
         ground_offset = self.ground_rect.topleft - self.offset
         self._image.blit(self.ground_surface, ground_offset)
         # active elements
         for sprite in sorted(self.sprites(), key=lambda sprite_: sprite_.rect.centery):
+            if not hasattr(sprite, "rect"):
+                continue
             offset_pos = sprite.rect.topleft - self.offset
-            self._image.blit(sprite.image, offset_pos)
+            if hasattr(sprite, "image"):
+                self._image.blit(sprite.image, offset_pos)
         self.mouse_rect.center = self.global_mouse
         super().update()
 
@@ -198,7 +195,6 @@ def main():
         screen.fill("#71ddee")
 
         camera_group.update()
-        camera_group.snap(cam_pos)
         camera_group.draw()
 
         pygame.display.update()

@@ -125,7 +125,7 @@ class JoinedGui(BaseGui):
     """
     groups multiple BaseGui to one
     """
-    def __init__(self, *sprites, pos="center", should_copy=True):
+    def __init__(self, *sprites, _pos="center", should_copy=True):
         self.sprites: list[BaseGui] = []
         min_pos = [None, None]
         max_pos = [None, None]
@@ -330,6 +330,10 @@ class ScrollableText(BaseGui):
         super().__init__(position, size)
 
     def add(self, *texts):
+        """
+        adds a text or list of texts to the text box
+        :param texts:
+        """
         text: Text
         for text in texts:
             text = text.wrap(self.size)
@@ -355,7 +359,7 @@ def grid_layout(size, widgets: list[list[BaseGui]]):
     return widgets_list
 
 
-def join(*sprites, align="horizontal", should_copy=True):
+def join(*sprites, _align="horizontal", should_copy=True):
     """
     joins a couple of widgets to one active group and returns the active group
     """

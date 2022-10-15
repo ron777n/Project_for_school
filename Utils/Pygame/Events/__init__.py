@@ -45,4 +45,3 @@ def check_events(events_list):
 
     for timer in functioned_timers:
         timer.check()
-

@@ -40,7 +40,7 @@ def main():
 
     camera_group.add(player)
 
-    draw_options = pymunk.pygame_util.DrawOptions(screen)
+    # draw_options = pymunk.pygame_util.DrawOptions(screen)
 
     while True:
         for event in pygame.event.get():

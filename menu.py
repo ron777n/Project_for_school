@@ -3,7 +3,7 @@ cancer
 """
 import pygame
 
-from Utils.events import event, post_event, subscribe
+from Utils.events import post_event, subscribe
 from Utils.Pygame import Gui
 from Utils.Pygame.texting import pause_typing
 
@@ -75,7 +75,8 @@ class GuiWindow:
         self.widgets["user_button"] = Gui.Button((0, 0), (0, 0), "not logged in", '', 40,
                                                  (self.set_screen, ("login",), {}))
         single_player = Gui.Button((0, 0), (300, 100), "single player", '', 40, (self.set_screen, (None,), {}))
-        self.widgets["multi_player"] = Gui.Button((0, 0), (300, 100), "multi-player", '', 40, (self.set_screen, ("login",), {}))
+        self.widgets["multi_player"] = Gui.Button((0, 0), (300, 100), "multi-player", '', 40,
+                                                  (self.set_screen, ("login",), {}))
         leave_button = Gui.Button((0, 0), (0, 100), "leave", '', 40, pygame.event.Event(pygame.QUIT))
         option_button = Gui.Button((0, 0), (200, 100), "options", '', 40)
         main_grid = Gui.grid_layout(window_size, [[single_player], [self.widgets["multi_player"]],
@@ -105,7 +106,7 @@ class GuiWindow:
         :param mouse_pos: where the mouse is
         :param click_id: what type of click user clicked, eg: right or left mouse button
         """
-
+        button: Gui.BaseGui
         if self.in_menu and click_id == 1:
             for button in self._screen:
                 button.click(mouse_pos, 1)
@@ -116,6 +117,7 @@ class GuiWindow:
         :param mouse_pos: where the mouse is
         :param click_id: what type of click user clicked, eg: right or left mouse button
         """
+        button: Gui.BaseGui
         if self.in_menu and click_id == 1:
             for button in self._screen:
                 button.click(mouse_pos, 0)

@@ -1,16 +1,16 @@
 """
 For the objects
 """
-import math
+
+from typing import Optional
 
 import pygame
-from pygame.math import Vector2, Vector3
-from typing import Optional
-from Utils.Pygame.Gui import Text
 import pymunk
 import pymunk.pygame_util
+from pygame.math import Vector2, Vector3
 
-from Utils.timing import tick, dt
+from Utils.Pygame.Gui import Text
+from Utils.timing import dt, tick
 
 
 class BaseObject(pygame.sprite.Sprite, pymunk.Body):
@@ -109,7 +109,7 @@ class Turret(Solid):
     body_image = pygame.image.load("sprites/objects/turret_body.png")
     head_image = pygame.image.load("sprites/objects/turret_head.png")
 
-    def __init__(self, space, rect):
+    def __init__(self, _space, rect):
         super().__init__(body_type=pymunk.Body.KINEMATIC)
         self.position = rect.center
         self.shape = pymunk.Poly.create_box(self, size=rect.size)
@@ -162,7 +162,7 @@ class Laser(BaseObject):
     opacity: float = 0.5
 
     def __init__(self, space, start_point: Vector2, direction: Vector2, speed: int = 10, ):
-        super().__init__(pymunk.Body.KINEMATIC)
+        super().__init__(body_type=pymunk.Body.KINEMATIC)
         self.start_point = start_point
         self.speed = speed
         self.image = pygame.transform.rotate(self._image, direction.angle_to(Vector2(0, 0)))
@@ -175,6 +175,9 @@ class Laser(BaseObject):
         space.add(self, shape)
 
     def update(self):
+        """
+        updates the position of the image to the position of the physical laser
+        """
         self.rect.center = self.position
 
 

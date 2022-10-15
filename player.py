@@ -6,7 +6,9 @@ from typing import Optional
 import pymunk
 
 from camera import CameraGroup
-from good_looking.particles import Particle, ParticleEmitter
+from Good_looking.Particles import Particle, ParticleEmitter
+from Good_looking.Particles.falling import RainParticle
+from Utils.Pygame.targeting import Tracker
 from Utils.timing import Timer, FunctionedTimer, tick, dt
 from pygame.math import Vector2
 import leveler
@@ -57,17 +59,17 @@ class Player(physics.objects.Solid):
     RUN_SPEED = 30
     TERMINAL_VELOCITY = 200
     CHANGE_RUN_IMAGE = 200
-    friction = 0.7
+    friction = 0.9
     elasticity = 0.5
     mass = 10
 
-    def __init__(self, space: pymunk.Space, pos, sprite_path=r"sprites/player_sprites/arm_less.png"):
+    def __init__(self, space: pymunk.Space, pos, sprite_path=r"sprites/player_sprites/arm_less.png", looking=None):
         super().__init__(mass=100, moment=100)
         self.aura = None
         self.turn = False
         self.images = load_sheet(sprite_path)
         self._image = self.images[0]
-        self.rect = self._image.get_rect(center=pos)
+        self.rect: Tracker = Tracker(looking, self._image.get_rect(center=pos))
         self.position = pos
         self.jumps = self.MAX_JUMPS
         self.is_grounded = False
@@ -79,7 +81,6 @@ class Player(physics.objects.Solid):
         self.get_run_frame = cycle_generator(4, 6)
         self.camera = None
 
-        self.target: Optional[pygame.Rect] = None
         self._head = pygame.transform.scale(pygame.image.load(r"sprites/player_sprites/dvir_head.png"), (40, 50))
         self.head = self._head.copy()
 
@@ -94,6 +95,18 @@ class Player(physics.objects.Solid):
 
     def _change_run(self):
         self.run_image = self.images[next(self.get_run_frame)]
+
+    @property
+    def target(self):
+        return self.rect.target
+
+    @target.setter
+    def target(self, value):
+        self.rect.target = value
+
+    @target.deleter
+    def target(self):
+        del self.rect.target
 
     @property
     def image(self):
@@ -135,7 +148,8 @@ class Player(physics.objects.Solid):
         full_body_image = pygame.surface.Surface(
             (max(body_rect.size[0], head_rect.size[0]), body_rect.size[1] + head_rect.size[1]), pygame.SRCALPHA)
         full_body_image.blit(image_, (0, 0))
-        full_body_image.blit(self.head, (body_rect.centerx - head_rect.centerx, head_rect.top+head_rect.size[1]/1.25))
+        full_body_image.blit(self.head,
+                             (body_rect.centerx - head_rect.centerx, head_rect.top + head_rect.size[1] / 1.25))
         # full_body = image_.copy()
         return full_body_image
 
@@ -177,8 +191,12 @@ class Player(physics.objects.Solid):
         body.angle = 0
 
     def check_grounding(self):
+        """
+        checks the hit boxes to see if player is grounded
+        :return:
+        """
         grounding = {'normal': pymunk.Vec2d.zero(), 'penetration': 0.0, 'impulse': pymunk.Vec2d.zero(),
-            'position': pymunk.Vec2d.zero(), 'body': None, }
+                     'position': pymunk.Vec2d.zero(), 'body': None, }
         gravity_unit_vector = pymunk.Vec2d(1, 0).rotated(self.space.gravity.angle)
 
         def f(arbiter: pymunk.Arbiter):
@@ -204,8 +222,7 @@ class Player(physics.objects.Solid):
                 self.vel[0] = -Player.RUN_SPEED  # else:  #     self.vel[0] = 0
         if self.aura is not None:
             self.aura.update()
-        if self.target is not None:
-            self.direct(Vector2(self.target.center))
+        self.direct(self.rect.angle)
 
     def land(self):
         # self.vel.update()
@@ -217,17 +234,14 @@ class Player(physics.objects.Solid):
     def dash(self, left):
         if not self.dash_cool_down.check() and not self.is_grounded:
             self.vel.x = Player.RUN_SPEED * 2 * left
-            # self.rect.midbottom = self.position
             self.timed_dash.reset()
             self.dash_cool_down.reset()
 
-    def direct(self, pos):
-        diff_points = pos - Vector2(self.rect.center)
-        angle = diff_points.angle_to(Vector2(0, 0))
-        if diff_points.x < 0.5:
+    def direct(self, angle):
+        if angle > 90 or angle < -90:
             self.head = pygame.transform.flip(self._head, False, True)
             self.turn = True
-        elif diff_points.x > 0.5:
+        elif angle < 90 or angle > -90:
             self.head = self._head.copy()
             self.turn = False
         self.head = pygame.transform.rotate(self.head, angle)
@@ -240,7 +254,7 @@ class Player(physics.objects.Solid):
         else:
             return
         self.camera = group
-        self.aura = ParticleEmitter(Particle, self.rect, camera_group=self.camera, rand=True)
+        self.aura = ParticleEmitter(RainParticle, self.rect, Timer(25), camera_group=self.camera, rand=True)
 
 
 def main():
@@ -289,7 +303,6 @@ def main():
                     player.moving = 0
 
         player.update()
-        main_camera.snap(player.rect)
         main_camera.update()
         main_camera.draw()
         # level.debug_draw(draw_options)
