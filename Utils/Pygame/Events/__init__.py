@@ -36,7 +36,7 @@ def check_events(events_list):
         elif pygame_event.type == pygame.MOUSEMOTION:
             post_event("mouse_moved", pygame_event.pos, pygame_event.rel, pygame_event.buttons, pygame_event.touch)
         elif pygame_event.type == pygame.MOUSEWHEEL:
-            pass
+            post_event("on_scroll", pygame.mouse.get_pos(), pygame_event.y)
         elif pygame_event.type == pygame.TEXTINPUT:
             pass
         else:

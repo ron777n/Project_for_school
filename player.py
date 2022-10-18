@@ -1,20 +1,18 @@
 """
 everything player
 """
-from typing import Optional
 
+import pygame
 import pymunk
+import pymunk.pygame_util
+from pygame.math import Vector2
 
+import physics
 from camera import CameraGroup
-from Good_looking.Particles import Particle, ParticleEmitter
+from Good_looking.Particles import ParticleEmitter
 from Good_looking.Particles.falling import RainParticle
 from Utils.Pygame.targeting import Tracker
-from Utils.timing import Timer, FunctionedTimer, tick, dt
-from pygame.math import Vector2
-import leveler
-import physics
-import pygame
-import pymunk.pygame_util
+from Utils.timing import FunctionedTimer, Timer
 
 
 def cycle_generator(min_size, max_size):
@@ -81,7 +79,7 @@ class Player(physics.objects.Solid):
         self.get_run_frame = cycle_generator(4, 6)
         self.camera = None
 
-        self._head = pygame.transform.scale(pygame.image.load(r"sprites/player_sprites/dvir_head.png"), (40, 50))
+        self._head = pygame.transform.scale(pygame.image.load(r"sprites/player_sprites/head.png"), (40, 50))
         self.head = self._head.copy()
 
         self.timed_dash = Timer(self.TIMED_DASH, False)
@@ -98,10 +96,19 @@ class Player(physics.objects.Solid):
 
     @property
     def target(self):
+        """
+        getter: gets the rect of what the plauyer is looking at
+        :return:
+        """
         return self.rect.target
 
     @target.setter
-    def target(self, value):
+    def target(self, value: pygame.Rect):
+        """
+        sets the target to be a rect
+        :param value:
+        :return:
+        """
         self.rect.target = value
 
     @target.deleter
@@ -154,6 +161,9 @@ class Player(physics.objects.Solid):
         return full_body_image
 
     def jump(self):
+        """
+        makes the player jump
+        """
         # self.apply_impulse_at_local_point((0, -15*self.mass*5), (0, 0))
         if self.jumps > 0:
             self.vel.y = -70
@@ -178,7 +188,7 @@ class Player(physics.objects.Solid):
             new_vel[1] = physical_vel[1]
         if body.check_grounding()["body"] is not None:
             if not body.is_grounded:
-                body.land()
+                body._land()
                 body.is_grounded = True
         else:
             body.is_grounded = False
@@ -200,9 +210,14 @@ class Player(physics.objects.Solid):
         gravity_unit_vector = pymunk.Vec2d(1, 0).rotated(self.space.gravity.angle)
 
         def f(arbiter: pymunk.Arbiter):
+            """
+            yes
+            :param arbiter:
+            """
             n = arbiter.contact_point_set.normal
 
-            if gravity_unit_vector.y + 0.708 > n.y > gravity_unit_vector.y - 0.708 and gravity_unit_vector.x + 0.708 > n.x > gravity_unit_vector.x - 0.708:
+            if gravity_unit_vector.y + 0.708 > n.y > gravity_unit_vector.y - 0.708 and \
+                    gravity_unit_vector.x + 0.708 > n.x > gravity_unit_vector.x - 0.708:
                 grounding['normal'] = n
                 grounding['penetration'] = -arbiter.contact_point_set.points[0].distance
                 grounding['body'] = arbiter.shapes[1].body
@@ -213,6 +228,9 @@ class Player(physics.objects.Solid):
         return grounding
 
     def update(self):
+        """
+        i don't like missing doc strings...
+        """
         # super().update()
         self.rect.center = self.position[0], self.position[1] - 20
         if self.moving and self.is_grounded:
@@ -224,20 +242,28 @@ class Player(physics.objects.Solid):
             self.aura.update()
         self.direct(self.rect.angle)
 
-    def land(self):
+    def _land(self):
         # self.vel.update()
         self.bumped = False
         self.jumps = self.MAX_JUMPS
         self.dash_cool_down.disable()
         self.timed_dash.disable()
 
-    def dash(self, left):
+    def dash(self, left: bool):
+        """
+        sets the player velocity to double of the run speed and disables gravity for a short while
+        :param left: -1 if the player is dashing left else 1
+        """
         if not self.dash_cool_down.check() and not self.is_grounded:
-            self.vel.x = Player.RUN_SPEED * 2 * left
+            self.vel.x = Player.RUN_SPEED * 2 * (-1 if left else 1)
             self.timed_dash.reset()
             self.dash_cool_down.reset()
 
     def direct(self, angle):
+        """
+        directs the player to the given angle
+        :param angle:
+        """
         if angle > 90 or angle < -90:
             self.head = pygame.transform.flip(self._head, False, True)
             self.turn = True
@@ -247,6 +273,10 @@ class Player(physics.objects.Solid):
         self.head = pygame.transform.rotate(self.head, angle)
 
     def coolify(self):
+        """
+        enables particles for the player to make it look cool
+        :return:
+        """
         groups = self.groups()
         for group in groups:
             if isinstance(group, CameraGroup):
@@ -255,62 +285,3 @@ class Player(physics.objects.Solid):
             return
         self.camera = group
         self.aura = ParticleEmitter(RainParticle, self.rect, Timer(25), camera_group=self.camera, rand=True)
-
-
-def main():
-    import camera
-    import leveler
-    levels = leveler.build_levels()
-    level = leveler.join_levels(levels)
-    pygame.init()
-    camera_size = (1200, 600)
-    pygame.display.set_mode(camera_size)
-    main_camera = camera.CameraGroup(level.image, camera_size)
-    player = Player(level, (600, 500))
-    draw_options = pymunk.pygame_util.DrawOptions(pygame.display.get_surface())
-    main_camera.add(player)
-    double_click_timer = Timer(200)
-    while True:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                pygame.quit()
-            elif event.type == pygame.KEYDOWN:
-                normal = event.unicode
-                if event.key == 27:
-                    pygame.quit()
-                    exit()
-                double_click = double_click_timer.check(normal)
-                if normal == ' ':
-                    player.jump()
-                elif event.key in (pygame.K_d, pygame.K_RIGHT):
-                    if double_click:
-                        player.dash(1)
-                    player.moving = 1
-                elif event.key in (pygame.K_a, pygame.K_LEFT):
-                    if double_click:
-                        player.dash(-1)
-                    player.moving = -1
-                elif event.key in (pygame.K_MINUS, pygame.K_UNDERSCORE):
-                    main_camera.zoom /= 1.5
-                elif event.key in (pygame.K_PLUS, pygame.K_EQUALS):
-                    main_camera.zoom *= 1.5
-                double_click_timer.reset(normal)
-
-            elif event.type == pygame.KEYUP:
-                if event.key in (pygame.K_d, pygame.K_RIGHT) and player.moving == 1:
-                    player.moving = 0
-                elif event.key in (pygame.K_a, pygame.K_LEFT) and player.moving == -1:
-                    player.moving = 0
-
-        player.update()
-        main_camera.update()
-        main_camera.draw()
-        # level.debug_draw(draw_options)
-
-        pygame.display.update()
-        tick(60)
-        level.step(dt[0])
-
-
-if __name__ == '__main__':
-    main()

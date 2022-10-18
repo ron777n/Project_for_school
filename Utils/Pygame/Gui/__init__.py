@@ -3,6 +3,7 @@ this is for any gui utils i might have
 """
 import textwrap
 import time
+from typing import Sequence
 
 import pygame
 from Utils.events import get_subscribers, post_event, create_event, clear_event, unsubscribe
@@ -99,6 +100,7 @@ class BaseGui(pygame.sprite.Sprite):
         self.rect = self._image.get_rect()
         self.image = self._image.copy()
         self.size = self.image.get_size()
+        self.start_position = position
         self.rect.center = position
 
     def click(self, mouse_pos: tuple, click_type: int):
@@ -109,6 +111,14 @@ class BaseGui(pygame.sprite.Sprite):
         :return: forgot what i was going with here but ok
         """
         return self.rect.collidepoint(mouse_pos)
+
+    def scroll(self, *args, **kwargs):
+        """
+        when user scrolled in the screen
+        :param mouse_pos: where the cursor was when the user scrolled
+        :param up: is that a scroll up
+        """
+        pass
 
     def redraw(self):
         """
@@ -324,24 +334,91 @@ class Label(TextBasedGui):
         self._text.draw(self.image)
 
 
-class ScrollableText(BaseGui):
+class ScrollableImage(BaseGui):
+    """
+    it is an image, that you can SCROLL
+    """
+    def __init__(self, position, size, reverse=False, upwards=False):
+        super().__init__(position, size)
+        self.image_height = 0
+        self._offset = 0
+        self.reverse = reverse
+        self.upwards = upwards
+
+    def add_image(self, image, scale=False):
+        width, height = image.get_size()
+        if scale and width != self.size[0]:
+            diff = self.size[0] / width
+            width *= diff
+            height *= diff
+            image = pygame.transform.scale(image, (width, height))
+        img = self._image.copy()
+        self.image_height += height
+        self._image = pygame.surface.Surface((self.size[0], self.image_height), pygame.SRCALPHA)
+        if self.reverse:
+            self._image.blit(img, (0, 0))
+            self._image.blit(image, (0, self._image.get_height() - height))
+        else:
+            self._image.blit(img, (0, height))
+            self._image.blit(image, (0, 0))
+        self.offset = 0 if not self.upwards else self._image.get_height() - self.size[1]
+
+    @property
+    def offset(self):
+        return self._offset
+
+    @offset.setter
+    def offset(self, value):
+        self._offset = value
+        if self._image.get_height() < self.size[1]:
+            self._offset = max(self._offset, self._image.get_height() - self.size[1])
+            self._offset = min(self._offset, 0)
+        else:
+            self._offset = max(self._offset, 0)
+            self._offset = min(self._image.get_height() - self.size[1], self._offset)
+
+        self.image = pygame.surface.Surface(self.size, pygame.SRCALPHA)
+        self.image.blit(self._image, (0, -self._offset))
+
+    def scroll(self, dy):
+        self.offset += dy
+
+
+class ScrollableGui(BaseGui):
+    """
+    Gui that you could scroll through
+    """
+    def __init__(self, position, max_size, background=None, *widgets):
+        super().__init__(position, max_size, background)
+        self.widgets: list[BaseGui] = []
+        self.add(*widgets)
+        self.offset = 0
+
+    def add(self, *widgets: BaseGui):
+        for widget in widgets:
+            self.widgets.append(widget)
+
+    def scroll(self, dy):
+        self.offset += dy
+
+
+class ScrollableText(ScrollableImage):
     """
     joined gui that can be added to and scrollable
     """
     def __init__(self, position, size):
-        super().__init__(position, size)
+        super().__init__(position, size, True, True)
+        self.text_size = 0
 
-    def add(self, *texts):
+    def add(self, *texts: Text):
         """
         adds a text or list of texts to the text box
         :param texts:
         """
-        text: Text
         for text in texts:
             text = text.wrap(self.size)
-            for i in range(text.size[1]//29):
-                self.image.scroll(0, -29)  # for some reason it "duplicates" the image if scrolled too much
-            self.image.blit(text, (0, 271-text.size[1]))
+            self.add_image(text)
+            # self.scroll(-text.size[1])
 
 
 def grid_layout(size, widgets: list[list[BaseGui]]):

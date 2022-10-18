@@ -2,27 +2,41 @@
 enables you to status bro
 """
 from pypresence import Presence
+from pypresence.exceptions import DiscordNotFound
 from threading import Thread
 import asyncio
 import time
 
 
-RTC = Presence(954772507494326363, loop=asyncio.new_event_loop())
+try:
+    RTC = Presence(954772507494326363, loop=asyncio.new_event_loop())
+except DiscordNotFound:
+    RTC = None
 
 started = round(time.time())
 
 
 def _connect():
+    global RTC
+    if RTC is None:
+        return
+    try:
+        RTC.connect()
+        return
+    except RuntimeError:
+        pass
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     try:
         RTC.connect()
     except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        RTC.connect()
+        RTC = None
+        return
 
 
-connection_thread = Thread(target=_connect, daemon=True)
-connection_thread.start()
+if RTC is not None:
+    connection_thread = Thread(target=_connect, daemon=True)
+    connection_thread.start()
 
 
 def status(single: bool, floor, ):
@@ -32,7 +46,7 @@ def status(single: bool, floor, ):
     :param floor: the floor/distance he passed by now
     :return:
     """
-    if connection_thread.is_alive():
+    if RTC is None or connection_thread.is_alive():
         return
     RTC.update(state="playing single player" if single else "playing multi-player, somehow?",
                details=f"floor: {floor}" if not isinstance(floor, float) or round(floor) != 43 else "last_floor",

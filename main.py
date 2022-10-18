@@ -70,7 +70,7 @@ def submit_text_(message):
         protocol = client.protocols["ChatCommand"]
         main_client.send(protocol, protocol.format_message(message, (0, 0, 0)))
     else:
-        chat.add(Gui.Text(f"<{'you'}>: {message}", (255, 0, 0)))
+        chat.add(Gui.Text(f"<{'You'}>: {message}", (255, 0, 0)))
 
 
 @event
@@ -78,8 +78,9 @@ def on_message(message, _color, user_id):
     """
     called when user sends a message
     """
-    user = users_data[user_id] if user_id in users_data else user_id
-    msg = f"<{user}>: {message}"
+    user: str = users_data[user_id] if user_id in users_data else str(user_id)
+    msg = f"<{user.strip()}>: {message}"
+    print(msg)
     chat.add(Gui.Text(msg, (255, 0, 0)))
 
 
@@ -107,11 +108,11 @@ def key_down(normal, _special_keys, key):
         main_player.jump()
     elif key in (pygame.K_d, pygame.K_RIGHT):
         if double_click:
-            main_player.dash(1)
+            main_player.dash(False)
         main_player.moving = 1
     elif key in (pygame.K_a, pygame.K_LEFT):
         if double_click:
-            main_player.dash(-1)
+            main_player.dash(True)
         main_player.moving = -1
     elif key in (pygame.K_MINUS, pygame.K_UNDERSCORE):
         camera_group.zoom /= 1.5
@@ -168,9 +169,23 @@ def on_login(_url, client_id, user_name):
     elif client_id == user_data["ID"]:
         print(f"successfully logged in as {user_name}")
         user_data["user_name"] = user_name
+        # pygame.display.set_caption(f"logged in as {user_name}")
+        chat.add(Gui.Text(f"Logged in as {user_name}", (255, 0, 0)))
     else:
         print(f"client with id({client_id}) logged in as {user_name}")
     users_data[client_id] = user_name
+    chat.add(Gui.Text(f"{user_name} has joined the chat", (255, 0, 0)))
+
+
+@event
+def on_scroll(pos, up):
+    """
+
+    :param pos:
+    :param up:
+    """
+    if chat.rect.collidepoint(*pos):
+        chat.scroll(up*-10)
 
 
 window = menu.GuiWindow()
@@ -191,6 +206,7 @@ def load_window(time_passage=True):
     if not discord_timer.check():
         update_discord()
         discord_timer.reset()
+    pygame.draw.rect(display, (255, 0, 0), chat.rect, 1)
 
     pygame.display.flip()
     timing.tick(fps)
@@ -226,7 +242,9 @@ user_data: Dict[str, any] = {}
 # gui
 generic_gui = pygame.sprite.Group()
 
-chat = Gui.ScrollableText((100, 400), (200, 300))
+chat = Gui.ScrollableText((150, HEIGHT/2), (300, HEIGHT/3))
+for i in range(7):
+    chat.add(Gui.Text(f"<{i}>: Fuck", (255, 0, 0)))
 # chat.add(Gui.Text("HELLO world", (255, 0, 0)))
 generic_gui.add(chat)
 

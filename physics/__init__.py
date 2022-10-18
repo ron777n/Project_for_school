@@ -9,10 +9,13 @@ import pymunk
 import pymunk.pygame_util
 from pygame.math import Vector2
 
-from physics import moving_objects
 from Utils.timing import tick, dt
 from Utils.Pygame.Gui import Text
-from . import objects
+from physics import moving_objects
+from physics import objects
+
+
+interact_able = [objects.Block, objects.Turret]
 
 
 def main():
@@ -34,8 +37,9 @@ def main():
     block_right = objects.Block(space, pygame.rect.Rect(1000, 50, 100, 500), True)
     block_top = objects.Block(space, pygame.rect.Rect(50, 0, 1050, 100), True)
     block_bottom = objects.Block(space, pygame.rect.Rect(50, 550, 1050, 100), True)
-    egg = objects.Block(space, pygame.rect.Rect(300, 300, 100, 100), False)
-    new_egg = moving_objects.LineWay(space, pygame.rect.Rect(500, 300, 100, 100))
+    egg = objects.Block(space, pygame.rect.Rect(800, 300, 100, 100), False)
+    new_egg = objects.Block(space, pygame.rect.Rect(500, 300, 100, 100), False)
+    moving_objects.LineWay(new_egg, pygame.rect.Rect((250, 170), (500, 150)), True, 30, gravity=False)
 
     # stationary_blocks = pygame.sprite.Group(block_left, block_right, block_top, block_bottom)
     camera_group.add(block_left, block_right, block_top, block_bottom)
@@ -71,7 +75,7 @@ def main():
         camera_group.update()
         camera_group.draw(screen)
 
-        space.debug_draw(draw_options)
+        # space.debug_draw(draw_options)
 
         fps = clock.get_fps()
         fps = Text(f"{fps:.2f}FPS", (0, 0, 0))
