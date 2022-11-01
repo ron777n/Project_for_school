@@ -1,7 +1,7 @@
 """
 enables you to status bro
 """
-from pypresence import Presence
+from pypresence import Presence, DiscordError
 from pypresence.exceptions import DiscordNotFound
 from threading import Thread
 import asyncio
@@ -29,7 +29,7 @@ def _connect():
     asyncio.set_event_loop(loop)
     try:
         RTC.connect()
-    except RuntimeError:
+    except DiscordError:
         RTC = None
         return
 

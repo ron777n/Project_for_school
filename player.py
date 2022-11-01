@@ -79,7 +79,7 @@ class Player(physics.objects.Solid):
         self.get_run_frame = cycle_generator(4, 6)
         self.camera = None
 
-        self._head = pygame.transform.scale(pygame.image.load(r"sprites/player_sprites/head.png"), (40, 50))
+        self._head = pygame.transform.scale(pygame.image.load(r"sprites/player_sprites/dvir_head.png"), (40, 50))
         self.head = self._head.copy()
 
         self.timed_dash = Timer(self.TIMED_DASH, False)
