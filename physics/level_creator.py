@@ -15,6 +15,7 @@ from Utils.events import event
 from Utils.timing import tick, dt
 from camera import CameraGroup
 from physics.objects import Block, Solid
+from physics.objects.blocks import SlipperyBlock
 
 
 class ObjectGui(Gui.Button):
@@ -25,6 +26,7 @@ class ObjectGui(Gui.Button):
     def __init__(self, position, size, object_type: Type[Solid], ):
         img = object_type._image
         self.object_type = object_type
+        self._image = img
         super().__init__(position, size, img)
 
     def click(self, mouse_pos, click_type, click_id):
@@ -36,9 +38,17 @@ class ObjectGui(Gui.Button):
                     current_block.image = None
                 if mouse_pos[0] > self.rect.right and was_clicked:
                     spawn(self.object_type, camera_group.mouse)
-                    print("SPAWN")
             elif in_rect and click_type:
                 current_block.image = self.object_type._image
+
+
+class BlocksMenu(Gui.ScrollableGui):
+    @property
+    def image(self):
+        img = super().image
+        if current_block.image is not None and self.rect.colliderect(current_block.rect):
+            img.set_alpha(255 // 2)
+        return img
 
 
 class ObjectButton(Clickable):
@@ -48,11 +58,10 @@ class ObjectButton(Clickable):
     """
     def __init__(self, object_type: Type[Solid], position):
         self.type = object_type
-        self.args = []
-        self.kwargs = {}
-        super().__init__(position, (100, 100), object_type._image, (lambda: print("oh shit"), (3,)))
-        self.args.append((self.rect.topleft, (100, 100)))
-        gui_group.add(self)
+        self.position_size = []
+        self.kwargs = object_type.__init__.__kwdefaults__.copy()
+        super().__init__(position, (100, 100), object_type._image, (self.open_menu, (3,)))
+        self.position_size[:2] = self.rect.topleft, (100, 100)
 
     def click(self, mouse_pos, click_type, click_id):
         was_clicked = self.clicked.setdefault(click_id, 0)
@@ -63,14 +72,23 @@ class ObjectButton(Clickable):
                     current_block.image = None
                 if mouse_pos[0] > 200 and was_clicked:
                     self.rect.center = mouse_pos
-                    self.args[0] = self.rect.topleft, self.size
+                    self.position_size[0] = self.rect.topleft
+                elif mouse_pos[0] < 200 and was_clicked:
+                    delete_block(self)
             elif in_rect and click_type:
                 current_block.image = self.type._image
-                current_block.rect.size = self.args[0][1]
+                current_block.rect.size = self.position_size[1]
 
     def spawn(self, space, camera):
-        new_block = self.type(space, *self.args, **self.kwargs)
+        new_block = self.type(space, pygame.Rect(self.position_size), **self.kwargs)
         camera.add(new_block)
+
+    def open_menu(self):
+        if self.kwargs["body_type"] == pymunk.Body.DYNAMIC:
+            self.kwargs["body_type"] = pymunk.Body.STATIC
+        elif self.kwargs["body_type"] == pymunk.Body.STATIC:
+            self.kwargs["body_type"] = pymunk.Body.DYNAMIC
+        print(f"{self.kwargs=}")
 
 
 pygame.init()
@@ -82,19 +100,34 @@ camera_group = CameraGroup(back_drop, cam_shape)
 current_block = pygame.sprite.Sprite()
 current_block.image = None
 current_block.rect = pygame.rect.Rect(0, 0, 100, 100)
+properties_gui_size = (250, cam_shape[1])
+options = Gui.ScrollableGui((cam_shape[0]-properties_gui_size[0]/2, cam_shape[1]//2), properties_gui_size, pygame.image.load("sprites/Gui/Button.png"))
+camera_group.add(options)
+options.active = False
 
 level = leveler.Level(back_drop)
 blocks: list[ObjectButton] = []
 gui_group = Gui.GuiCollection(active=True)
 
 
+def delete_block(block):
+    blocks.remove(block)
+    gui_group.remove(block)
+    camera_group.remove(block)
+    update_blocks()
+
+
 def spawn(block: Type[Solid], pos):
     btn = ObjectButton(block, pos)
     blocks.append(btn)
+    gui_group.add(btn)
     update_blocks()
 
 
 def update_blocks():
+    """
+    deletes a block
+    """
     global camera_group, level
     camera_group = CameraGroup(back_drop, cam_shape)
     level = leveler.Level(back_drop)
@@ -105,14 +138,16 @@ def save_level(back_ground, spawn_point, *data):
 
 
 def generate_main_menu(window_screen: Gui.GuiWindow, window_size):
-    first = Gui.ScrollableGui((100, window_size[1] / 2), (200, window_size[1]), )
+    blocks_menu = BlocksMenu((100, window_size[1] / 2), (200, window_size[1]), )
     block_button = ObjectGui((0, 0), (100, 100), Block)
-    first.add(block_button)
+    blocks_menu.add(block_button)
+    block_button = ObjectGui((0, 0), (100, 100), SlipperyBlock)
+    blocks_menu.add(block_button)
     start_button = Gui.Button((0, 0), (0, 0), "Start", specific_event=flip_time_pass)
-    first.add(start_button)
-    window_screen.add_screen("main", pygame.sprite.Group(first))
-    window_screen.screen = "main"
-    pass
+    blocks_menu.add(start_button)
+    sartan = Gui.GuiCollection(blocks_menu)
+    sartan.active = True
+    window_screen.add_screen("main", sartan)
 
 
 @event

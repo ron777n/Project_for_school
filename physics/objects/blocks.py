@@ -7,6 +7,7 @@ import pygame
 import pymunk
 from pygame.math import Vector2
 
+from Utils.Pygame import image_utils
 from Utils.timing import Timer
 from .basics import Solid, BaseObject
 
@@ -18,7 +19,7 @@ class Block(Solid):
     elasticity = 0.6
     strength = 1.0
     hardness = 1.0
-    friction = 0.3
+    friction = 0.8
     density = 0.3
     _image = pygame.image.load('sprites/objects/block.png')
     emission: Optional[tuple] = None
@@ -27,11 +28,13 @@ class Block(Solid):
     melting_point: float = 30.0
     opacity: float = 1.0
 
-    def __init__(self, space, rect, body_type=pymunk.Body.DYNAMIC):
+    def __init__(self, space, rect, *, body_type=pymunk.Body.DYNAMIC, **kwargs):
         super().__init__(body_type=body_type)
         if not isinstance(rect, pygame.Rect):
             rect = pygame.Rect(rect)
         self.shape = pymunk.Poly.create_box(self, size=rect.size)
+        for kwarg, value in kwargs.items():
+            setattr(self.shape, kwarg, value)
         self.create_shape(self.shape, rect)
         self.position = rect.center
         self.rect = rect
@@ -127,3 +130,14 @@ class Laser(BaseObject):
         pymunk.Body.update_velocity(body, (0, 0), damping, delta_time)
         body.angle = 0
         body.velocity = body.velocity.scale_to_length(body.speed)
+
+
+class SlipperyBlock(Block):
+    """
+    block that is also slippery
+    """
+    _image = image_utils.tint_image(Block._image, (0, 0, 255), 200)
+
+    def __init__(self, space, rect, *, body_type=pymunk.Body.DYNAMIC, friction=0.5):
+        super().__init__(space, rect, body_type=body_type, friction=friction)
+        # self._image.fill((0, 0, 255, 127), self.rect)

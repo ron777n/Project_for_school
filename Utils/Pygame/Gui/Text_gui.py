@@ -85,11 +85,11 @@ class TextBasedGui(BaseGui):
             size = size[0], self._text.get_height() + 10
             position = position[0], position[1] + size[1] // 2
         BaseGui.__init__(self, position, size, background_image)
+
         self.mode = mode
         self._text_color = text_color
         self.font = font
         self._text.draw(self._image)
-
 
     @property
     def text(self):
@@ -110,7 +110,7 @@ class TextBasedGui(BaseGui):
         else:
             raise ValueError("invalid text type")
         self.redraw()
-        self._text.draw(self.image, self.mode)
+        self._text.draw(self._image, self.mode)
 
     @property
     def text_color(self):
@@ -154,6 +154,7 @@ class InputBox(TextBasedGui):
         """
 
         # check mouseover and clicked conditions
+        print(self.rect, mouse_pos)
         if self.rect.collidepoint(mouse_pos):
             if click_type:
                 start_typing(((pygame.K_RETURN, ("submit",)), (pygame.K_ESCAPE, ("shit",))), self.text, self)
@@ -191,7 +192,7 @@ class Label(TextBasedGui):
         redraws the text
         """
         self.redraw()
-        self._text.draw(self.image)
+        self._text.draw(self._image)
 
 
 class Button(TextBasedGui, Clickable):
@@ -215,7 +216,7 @@ class Button(TextBasedGui, Clickable):
         else:
             BaseGui.__init__(self, position, size, background)
         Clickable.__init__(self, position, self.size, background, specific_event)
-        self.image = self._image.copy()
+        # self.image = self._image.copy()
 
 
 class ScrollableText(ScrollableImage):

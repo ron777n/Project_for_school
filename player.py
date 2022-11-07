@@ -8,6 +8,7 @@ import pymunk.pygame_util
 from pygame.math import Vector2
 
 import physics
+from Utils.Pygame.image_utils import load_sheet
 from camera import CameraGroup
 from Good_looking.Particles import ParticleEmitter
 from Good_looking.Particles.falling import RainParticle
@@ -30,22 +31,6 @@ def cycle_generator(min_size, max_size):
         yield i
 
 
-def load_sheet(url):
-    """
-    loads a sheet of player sprites
-    :param url: !url of the sheet, or name of the sprite if one of the defaults, or !b64 data
-    :return: tuple of all the "stances" of the player
-    """
-    images: list[pygame.Surface] = []
-    full_image = pygame.image.load(url)
-    assert full_image.get_rect().size == (651, 103), "Invalid sprite sheet size"
-    for i in range(0, 651, 93):
-        small_image = pygame.Surface((93, 103), pygame.SRCALPHA)
-        small_image.blit(full_image, (0, 0), (i, 0, 93, 103))
-        images.append(small_image)
-    return images
-
-
 class Player(physics.objects.Solid):
     """
     fucks
@@ -65,7 +50,7 @@ class Player(physics.objects.Solid):
         super().__init__(mass=100, moment=100)
         self.aura = None
         self.turn = False
-        self.images = load_sheet(sprite_path)
+        self.images = load_sheet(sprite_path, 93, 103, (651, 103))
         self._image = self.images[0]
         self.rect: Tracker = Tracker(looking, self._image.get_rect(center=pos))
         self.position = pos

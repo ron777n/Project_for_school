@@ -2,7 +2,7 @@
 for the basics of gui
 """
 import copy
-from typing import Union, Callable, Iterable
+from typing import Union, Callable, Iterable, Tuple
 
 import pygame
 
@@ -21,10 +21,10 @@ class BaseGui(pygame.sprite.Sprite):
         super().__init__()
         if not hasattr(self, "_image"):
             self._image = BaseGui.generate_image(background_image, size)
-            self.image = self._image.copy()
-            self.size = self.image.get_size()
+            self.size = self._image.get_size() if size is None else size
         else:
             self.size = size
+        self.start_image = self._image.copy()
         self.rect = pygame.Rect((0, 0), self.size)
         self.start_position = position
         self.rect.center = position
@@ -70,12 +70,6 @@ class BaseGui(pygame.sprite.Sprite):
         """
         return False
 
-    def redraw(self):
-        """
-        redraws the image
-        """
-        self.image = self._image.copy()
-
     def copy(self):  # honestly i don't know why pygame sprites don't have these
         """
         returns a copy of the sprite for reference things
@@ -87,7 +81,6 @@ class BaseGui(pygame.sprite.Sprite):
             width, height = new_size
         else:
             width, height = self.size[0] * new_size, self.size[1] * new_size
-        self.image = pygame.transform.scale(self._image, (width, height))
         self.size = width, height
         self.rect.update(self.rect.topleft, (width, height))
         self.update()
@@ -96,19 +89,38 @@ class BaseGui(pygame.sprite.Sprite):
         for function, (args, kwargs) in self.on_update.items():
             function(*args, **kwargs)
 
+    def redraw(self):
+        self._image = self.start_image.copy()
+
+    @property
+    def image(self) -> pygame.Surface:
+        return pygame.transform.scale(self._image, self.rect.size)
+
 
 class GuiCollection(pygame.sprite.Group, BaseGui):
     """
     a gui that contains more more gui objects in it
     """
     def __init__(self, *sprites: BaseGui, active=False):
-        self._widgets: Iterable[BaseGui] = []
+        self._widgets: list[Union[BaseGui, tuple[BaseGui, any]]] = []
         super().__init__(*sprites)
-        BaseGui.__init__(self, (0, 0), pygame.display.get_window_size())
-        self.active = active
+        if not isinstance(self, BaseGui):
+            BaseGui.__init__(self, (0, 0), pygame.display.get_window_size())
+        self._active = active
 
         events.subscribe("click_down", self.click_down)
         events.subscribe("click_up", self.click_up)
+
+    @property
+    def active(self):
+        return self._active
+
+    @active.setter
+    def active(self, value):
+        self._active = value
+        for widget in self._widgets:
+            if hasattr(widget, "active"):
+                widget.active = value
 
     def draw(self, surface):
         for widget in self._widgets:
@@ -126,9 +138,8 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
     def widgets(self):
         self._widgets = []
 
-    def add(self, *sprites) -> None:
-        if hasattr(self._widgets, "extend"):
-            self._widgets.extend(sprites)
+    def add(self, *sprites: BaseGui) -> None:
+        self._widgets.extend(sprites)
 
     def click_down(self, mouse_pos, click_id):
         """
@@ -138,7 +149,7 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
         """
         button: BaseGui
         if self.active:
-            for button in self.widgets:
+            for button in self:
                 button.click(mouse_pos, 1, click_id)
 
     def click_up(self, mouse_pos, click_id):
@@ -149,8 +160,33 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
         """
         button: BaseGui
         if self.active:
-            for button in self.widgets:
+            for button in self:
                 button.click(mouse_pos, 0, click_id)
+
+    def remove(self, *sprites) -> None:
+        if hasattr(self._widgets, "remove"):
+            for sprite in sprites:
+                self._widgets.remove(sprite)
+
+    def __iter__(self):
+        self.n = -1
+        self.max_ = len(self._widgets)
+        return self
+
+    def __next__(self):
+        self.n += 1
+        if self.n < self.max_:
+            if isinstance(self._widgets[self.n], BaseGui):
+                return self._widgets[self.n]
+            return self._widgets[self.n][0]
+        else:
+            raise StopIteration
+
+    def __len__(self):
+        return len(self._widgets)
+
+    # def __repr__(self):
+    #     return f"<{self.__class__.__name__}({len(self)} sprites)>"
 
 
 class GuiWindow(GuiCollection):
@@ -193,10 +229,14 @@ class GuiWindow(GuiCollection):
             del self.widgets
         elif screen_name in self.screens:
             self.active = True
-            self._screen = self.screens[screen_name].copy()
-            self.widgets = self._screen
+            if hasattr(self._screen, "active"):
+                self.active = False
+            self._screen = self.screens[screen_name]
+            if hasattr(self._screen, "active"):
+                self.active = True
+            self.widgets = self._screen.widgets
 
-    def add_screen(self, name: str, screen: pygame.sprite.Group):
+    def add_screen(self, name: str, screen: Union[pygame.sprite.Group, GuiCollection]):
         self.screens[name] = screen
 
 
@@ -235,14 +275,14 @@ class Clickable(BaseGui):
             self.clicked[click_id] = 1 if click_type else 0
             if self.clicked[click_id]:
                 if click_id == 1:
-                    self.image.set_alpha(255 / 2)
+                    self._image.set_alpha(255 // 2)
             elif was_clicked and not click_type:
                 if (func := self.on_click.get(click_id)) is not None:
                     func()
 
         if not click_type:
             if click_id == 1:
-                self.image.set_alpha(255)
+                self._image.set_alpha(255)
             self.clicked[click_id] = 0
 
         return self.rect.collidepoint(mouse_pos)
@@ -260,7 +300,7 @@ class Scrollable(BaseGui):
         self.current_height = 0
         self.rect = pygame.Rect(position, size)
         self._image = BaseGui.generate_image(background, size)
-        super().__init__(position, size, background)
+        BaseGui.__init__(self, position, size, background)
         self.background = self._image.copy()
         events.subscribe("on_scroll", self.scroll)
 
@@ -316,15 +356,16 @@ class ScrollableImage(Scrollable):
         self.offset = 0 if not self.upwards else self.current_height - self.size[1]
 
 
-class ScrollableGui(Scrollable):
+class ScrollableGui(Scrollable, GuiCollection):
     """
     Gui that you could scroll through
     """
     Scrollable_timer = 700
 
     def __init__(self, position, max_size, background=None, *widgets):
-        super().__init__(position, max_size, background=background)
-        self.widgets: dict[BaseGui, int] = {}
+        Scrollable.__init__(self, position, max_size, background=background)
+        GuiCollection.__init__(self)
+        self.widgets: list[tuple[BaseGui, int]] = []
         self.add(*widgets)
         self.scroll_time = Timer(self.Scrollable_timer, False)
 
@@ -335,7 +376,7 @@ class ScrollableGui(Scrollable):
                     widget.resize(self.size[0] / widget.size[0])
                 widget.on_update[self.update] = (), {}
             widget.rect.topleft = self.rect.left, self.current_height
-            self.widgets[widget] = 0
+            self._widgets.append((widget, 0))
             events.unsubscribe("on_scroll", widget.scroll)
         self.update()
 
@@ -343,7 +384,7 @@ class ScrollableGui(Scrollable):
         if not self.rect.collidepoint(mouse_pos):
             return False
         if not self.scroll_time.check():
-            for widget in self.widgets:
+            for widget in self._widgets:
                 if widget.scroll(mouse_pos, dy):
                     return True
 
@@ -354,9 +395,11 @@ class ScrollableGui(Scrollable):
 
     @property
     def image(self):
+        if not self.active:
+            return pygame.surface.Surface(self.size, pygame.SRCALPHA)
         img = super().image
         s_rect = pygame.Rect((0, 0), self.size)
-        for widget, height in self.widgets.items():
+        for widget, height in self.widgets:
             widget_rect = pygame.Rect((0, height - self.offset), widget.size)
             if s_rect.colliderect(widget_rect):
                 img.blit(widget.image, widget_rect)
@@ -367,7 +410,7 @@ class ScrollableGui(Scrollable):
 
     def click(self, mouse_pos: tuple, click_type: int, click_id: int):
         self.update()
-        for widget, height in self.widgets.items():
+        for widget, height in self._widgets:
             if widget.rect.top < 0:
                 continue
             if self.rect.colliderect(widget.rect):
@@ -377,22 +420,23 @@ class ScrollableGui(Scrollable):
 
     def update(self):
         height = 0
-        for widget in self.widgets:
+        for i, (widget, _button) in enumerate(self.widgets):
             widget.rect.top = height - self.offset + self.rect.top
-            self.widgets[widget] = height
+            self.widgets[i] = (widget, height)
             # if hasattr(widget, "text") and "fuck" in widget.text:
             #     print(widget.text, widget.rect)
             height += widget.rect.size[1]
         self.current_height = height
-        super().update()
+        Scrollable.update(self)
 
 
-class JoinedGui(BaseGui):
+class JoinedGui(GuiCollection):
     """
     groups multiple BaseGui to one
     """
 
     def __init__(self, *sprites, _pos="center", should_copy=True):
+        super().__init__(active=True)
         self.sprites: list[BaseGui] = []
         min_pos = [None, None]
         max_pos = [None, None]
@@ -408,13 +452,13 @@ class JoinedGui(BaseGui):
                 max_pos[0] = sprite.rect.right
             if max_pos[1] is None or sprite.rect.bottom > max_pos[1]:
                 max_pos[1] = sprite.rect.bottom
-            if hasattr(sprite, "add_on_update"):
-                sprite.add_on_update(self.update)
-            self.sprites.append(sprite)
+            # if hasattr(sprite, "add_on_update"):
+            #     sprite.add_on_update(self.update)
+            # print(sprite)
+            self.add(sprite)
         pos = (min_pos[0] + max_pos[0]) // 2, (min_pos[1] + max_pos[1]) // 2
         size = max_pos[0] - min_pos[0], max_pos[1] - min_pos[1]
-        super().__init__(pos, size, (255, 255, 255))
-        self.update()
+        self.rect = pygame.Rect(pos, size)
 
     def click(self, click_pos, click_type, click_id):
         """
@@ -424,11 +468,11 @@ class JoinedGui(BaseGui):
         for sprite in self.sprites:
             sprite.click(click_pos, click_type, click_id)
 
-    def update(self, *args):
-        """
-        updates everything and redraws them
-        """
-        self.image.blits([(sprite.image, sprite.rect) for sprite in self.sprites])
+    @property
+    def image(self):
+        img = pygame.surface.Surface(self.rect.size, pygame.SRCALPHA)
+        img.blits([(sprite.image, sprite.rect) for sprite in self._widgets])
+        return img
 
 
 __all__ = ["GuiWindow", "JoinedGui", "BaseGui", "ScrollableImage", "ScrollableGui", "GuiCollection"]
