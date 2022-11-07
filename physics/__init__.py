@@ -22,11 +22,12 @@ def main():
     """
     main function
     """
+    from camera import CameraGroup
     pygame.init()
     cam_shape = 1200, 800
     screen = pygame.display.set_mode(cam_shape)
     clock = pygame.time.Clock()
-    camera_group = pygame.sprite.Group()
+    camera_group = CameraGroup(None, cam_shape)
 
     space = pymunk.Space()
     space.gravity = (0, 10)
@@ -73,7 +74,7 @@ def main():
         # pygame.draw.rect(screen, (255, 0, 0), player.rect)
 
         camera_group.update()
-        camera_group.draw(screen)
+        camera_group.draw()
 
         # space.debug_draw(draw_options)
 

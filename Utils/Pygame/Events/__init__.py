@@ -19,6 +19,7 @@ def check_events(events_list):
     checks every event and posts it if it is useful for us
     """
     for pygame_event in events_list:
+        # print(pygame_event)
         if pygame_event.type == pygame.QUIT:
             post_event("on_quit")
             pygame.quit()
@@ -39,6 +40,11 @@ def check_events(events_list):
             post_event("on_scroll", pygame.mouse.get_pos(), pygame_event.y)
         elif pygame_event.type == pygame.TEXTINPUT:
             pass
+        elif pygame_event.type == pygame.DROPFILE:
+            print("E")
+        elif pygame_event.type == pygame.USEREVENT_DROPFILE:
+            print("A")
+        # elif pygame_event.type == pygame.FILE
         else:
             # print(pygame.event.event_name(pygame_event.type))
             pass

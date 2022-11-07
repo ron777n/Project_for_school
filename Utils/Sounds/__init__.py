@@ -7,6 +7,7 @@ import os
 import random
 from typing import Generator, Iterator
 
+import pygame
 from pygame import mixer
 
 mixer.init()
@@ -41,27 +42,34 @@ def set_back_ground(track: str):
     sets the background music and removes the last one if there is one
     :param track:
     """
-    if mixer.music.get_busy():
-        mixer.music.fadeout(2000)
+    # if mixer.music.get_busy():
+    #     mixer.music.fadeout(2000)
     track += ".mp3" if '.' not in track else ''
-    mixer.music.load(f"data/sounds/music/{track}")
-    mixer.music.play()
+    print(mixer.music.get_busy())
+    if mixer.music.get_busy():
+        mixer.music.queue(f"data/sounds/music/{track}")
+    else:
+        mixer.music.load(f"data/sounds/music/{track}")
+        mixer.music.play()
 
 
 def main():
     """
     main function
     """
-    for i in range(5):
-        set_back_ground(next(music_generator))
-        time.sleep(5)
-        set_back_ground(next(music_generator))
-        time.sleep(5)
+    set_back_ground(next(music_generator))
+    set_back_ground(next(music_generator))
+    set_back_ground(next(music_generator))
+    set_back_ground(next(music_generator))
 
-    time.sleep(100)
+    while True:
+        pass
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass
 
 mixer.quit()
