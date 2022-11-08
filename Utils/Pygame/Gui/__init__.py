@@ -11,20 +11,20 @@ for event in events:
     create_event(event)
 
 
-def grid_layout(size, widgets: list[list[BaseGui]]):
+def grid_layout(size, widgets: list[list[BaseGui]]) -> GuiCollection:
     """
 
     :param size:
     :param widgets:
     """
-    widgets_list: list[BaseGui] = []
+    widgets_list = GuiCollection()
     row_per = size[1]/(len(widgets)+1)
     for row_index, row in enumerate(widgets, start=1):
         col_per = size[0]/(len(row)+1)
         for col_index, widget in enumerate(row, start=1):
             widget.rect.centerx = col_index * col_per
             widget.rect.centery = row_index * row_per
-            widgets_list.append(widget)
+            widgets_list.add(widget)
     return widgets_list
 
 

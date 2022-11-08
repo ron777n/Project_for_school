@@ -84,6 +84,7 @@ class ObjectButton(Clickable):
         camera.add(new_block)
 
     def open_menu(self):
+        # properties_gui.widgets
         if self.kwargs["body_type"] == pymunk.Body.DYNAMIC:
             self.kwargs["body_type"] = pymunk.Body.STATIC
         elif self.kwargs["body_type"] == pymunk.Body.STATIC:
@@ -92,18 +93,19 @@ class ObjectButton(Clickable):
 
 
 pygame.init()
-back_drop = pygame.image.load("ideas/ui/level_creator.png")
-cam_shape = back_drop.get_width(), 600
-screen = pygame.display.set_mode((back_drop.get_width(), cam_shape[1]))
+# back_drop = pygame.image.load("ideas/ui/level_creator.png")
+cam_shape = 1200, 900
+back_drop = Gui.BaseGui.generate_image(None, cam_shape)
+screen = pygame.display.set_mode((cam_shape[0], cam_shape[1]))
 clock = pygame.time.Clock()
 camera_group = CameraGroup(back_drop, cam_shape)
 current_block = pygame.sprite.Sprite()
 current_block.image = None
 current_block.rect = pygame.rect.Rect(0, 0, 100, 100)
 properties_gui_size = (250, cam_shape[1])
-options = Gui.ScrollableGui((cam_shape[0]-properties_gui_size[0]/2, cam_shape[1]//2), properties_gui_size, pygame.image.load("sprites/Gui/Button.png"))
-camera_group.add(options)
-options.active = False
+properties_gui = Gui.ScrollableGui((cam_shape[0]-properties_gui_size[0]/2, cam_shape[1]//2), properties_gui_size, pygame.image.load("sprites/Gui/Button.png"))
+camera_group.add(properties_gui)
+properties_gui.active = False
 
 level = leveler.Level(back_drop)
 blocks: list[ObjectButton] = []
@@ -199,4 +201,7 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n\n\n\n\n\nhave a good day y'all")

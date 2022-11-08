@@ -192,7 +192,7 @@ def load_window(time_passage=True):
     camera_group.update()
     camera_group.draw()  # draw player
     generic_gui.draw(display)
-    window.screen.draw(display)
+    window.draw(display)
     if not discord_timer.check():
         update_discord()
         discord_timer.reset()

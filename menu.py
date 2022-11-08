@@ -32,7 +32,7 @@ def generate_main_menu(window_screen: Gui.GuiWindow, window_size):
     option_button = Gui.Button((0, 0), (200, 100), "options", 40)
     main_grid = Gui.grid_layout(window_size, [[single_player], [multi_player],
                                               [leave_button, option_button]])
-    window_screen.add_screen("main_menu", pygame.sprite.Group(*main_grid, user_button))
+    window_screen.add_screen("main_menu", Gui.GuiCollection(*main_grid, user_button))
 
     name_label = Gui.Label((0, 35), (0, 70), (0, 0, 0), "Name:", text_color=(255, 255, 255))
     name_box = Gui.InputBox((0, 35), (500, 70), (255, 255, 255))
@@ -47,4 +47,4 @@ def generate_main_menu(window_screen: Gui.GuiWindow, window_size):
                                (attempt_login, (name_box, password_box, True), {}))
 
     login_grid = Gui.grid_layout(window_size, [[name_pack], [password_pack], [back_button, submit_button]])
-    window_screen.add_screen("login", pygame.sprite.Group(name_pack, login_grid))
+    window_screen.add_screen("login", login_grid)

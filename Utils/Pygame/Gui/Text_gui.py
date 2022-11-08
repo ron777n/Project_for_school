@@ -154,7 +154,6 @@ class InputBox(TextBasedGui):
         """
 
         # check mouseover and clicked conditions
-        print(self.rect, mouse_pos)
         if self.rect.collidepoint(mouse_pos):
             if click_type:
                 start_typing(((pygame.K_RETURN, ("submit",)), (pygame.K_ESCAPE, ("shit",))), self.text, self)

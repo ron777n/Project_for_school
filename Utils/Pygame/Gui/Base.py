@@ -18,7 +18,10 @@ class BaseGui(pygame.sprite.Sprite):
     resize_able = False
 
     def __init__(self, position, size=None, background_image=None):
+        if hasattr(self, "based_gui"):
+            return
         super().__init__()
+        self.based_gui = True
         if not hasattr(self, "_image"):
             self._image = BaseGui.generate_image(background_image, size)
             self.size = self._image.get_size() if size is None else size
@@ -104,8 +107,7 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
     def __init__(self, *sprites: BaseGui, active=False):
         self._widgets: list[Union[BaseGui, tuple[BaseGui, any]]] = []
         super().__init__(*sprites)
-        if not isinstance(self, BaseGui):
-            BaseGui.__init__(self, (0, 0), pygame.display.get_window_size())
+        BaseGui.__init__(self, (0, 0), pygame.display.get_window_size())
         self._active = active
 
         events.subscribe("click_down", self.click_down)
@@ -123,7 +125,7 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
                 widget.active = value
 
     def draw(self, surface):
-        for widget in self._widgets:
+        for widget in self:
             surface.blit(widget.image, widget.rect)
 
     @property
@@ -163,22 +165,19 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
             for button in self:
                 button.click(mouse_pos, 0, click_id)
 
-    def remove(self, *sprites) -> None:
-        if hasattr(self._widgets, "remove"):
-            for sprite in sprites:
-                self._widgets.remove(sprite)
-
     def __iter__(self):
         self.n = -1
-        self.max_ = len(self._widgets)
+        self.copied_widgets = self._widgets.copy()
+        self.max_ = len(self.copied_widgets)
         return self
 
     def __next__(self):
         self.n += 1
         if self.n < self.max_:
-            if isinstance(self._widgets[self.n], BaseGui):
-                return self._widgets[self.n]
-            return self._widgets[self.n][0]
+            widget = self.copied_widgets[self.n]
+            if isinstance(widget, BaseGui):
+                return widget
+            return widget[0]
         else:
             raise StopIteration
 
@@ -206,7 +205,7 @@ class GuiWindow(GuiCollection):
         copies so that if you .clear the screen it would still be fine
         :return:
         """
-        return self._screen.copy()
+        return self._screen
 
     @screen.setter
     def screen(self, screen_name):
@@ -238,6 +237,12 @@ class GuiWindow(GuiCollection):
 
     def add_screen(self, name: str, screen: Union[pygame.sprite.Group, GuiCollection]):
         self.screens[name] = screen
+
+    @property
+    def image(self):
+        if not self.active:
+            return pygame.surface.Surface(self.size, pygame.SRCALPHA)
+        return super().image
 
 
 class Clickable(BaseGui):
