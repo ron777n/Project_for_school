@@ -76,7 +76,8 @@ class TextBasedGui(BaseGui):
     if number in size is 0 then it takes the size of the text
     """
 
-    def __init__(self, position, size, background_image, text: Optional=None, mode=("center",), font=None, text_color=(0, 0, 0)):
+    def __init__(self, position, size, background_image, text: Optional = None, mode=("center",), font=None,
+                 text_color=(0, 0, 0)):
         self._text = Text(text, text_color, font)
         if not size[0]:
             size = self._text.get_width() + 30, size[1]
@@ -139,13 +140,13 @@ class InputBox(TextBasedGui):
         self._text = Text("")
         self.text_color = text_color
         self.mode = mode
-        self.on_update = list(on_update)
+        self.on_update = {func: (args, kwargs) for func, (args, kwargs) in on_update}
 
     def add_on_update(self, *functions: Callable[[None], any]):
         """
         add a function to when the text input is changed
         """
-        self.on_update.extend(functions)
+        self.on_update |= {func: (args, kwargs) for func, (args, kwargs) in functions}
 
     def click(self, mouse_pos, click_type, click_id):
         """
@@ -163,6 +164,12 @@ class InputBox(TextBasedGui):
             if get_text_focus() == self:
                 pause_typing(True)
 
+    # def change_rect(self, new_rect: Union[float, tuple[float, float],
+    #                                       tuple[float, float, float, float],
+    #                                       pygame.rect.Rect]):
+    #     super().change_rect(new_rect)
+    #     print("size: ", self.rect.topleft)
+
     def update_text(self, _letter, new_text):
         """
         updates the screen with the new shit
@@ -172,6 +179,10 @@ class InputBox(TextBasedGui):
         self.text = new_text
         for fnc in self.on_update:
             fnc(_letter, new_text)
+
+    # @property
+    # def image(self) -> pygame.Surface:
+    #     return super().image
 
 
 class Label(TextBasedGui):

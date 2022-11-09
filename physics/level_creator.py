@@ -1,7 +1,7 @@
 """
 helps you create new levels
 """
-from typing import Type, Optional
+from typing import Type
 
 import pygame
 import pymunk
@@ -56,15 +56,18 @@ class ObjectButton(Clickable):
     left click to move it around
     right click to open settings
     """
-    def __init__(self, object_type: Type[Solid], position):
+
+    def __init__(self, object_type: Type[Solid], position, name: str):
         self.type = object_type
-        self.position_size = []
-        self.kwargs = object_type.__init__.__kwdefaults__.copy()
+        self.name = name
         super().__init__(position, (100, 100), object_type._image, (self.open_menu, (3,)))
-        self.position_size[:2] = self.rect.topleft, (100, 100)
+        # self.kwargs["location_and_size"]: tuple[tuple[int, int], tuple[int, int]]
+        self.kwargs: dict[str, any] = {"location_and_size": (self.rect.topleft, (100, 100)),
+                                       "block_data": object_type.__init__.__kwdefaults__.copy()}
 
     def click(self, mouse_pos, click_type, click_id):
         was_clicked = self.clicked.setdefault(click_id, 0)
+        was_set = properties_gui.active is self
         in_rect = super().click(mouse_pos, click_type, click_id)
         if click_id == 1:
             if not click_type:
@@ -72,29 +75,63 @@ class ObjectButton(Clickable):
                     current_block.image = None
                 if mouse_pos[0] > 200 and was_clicked:
                     self.rect.center = mouse_pos
-                    self.position_size[0] = self.rect.topleft
+                    self.kwargs["location_and_size"] = self.rect.topleft, self.kwargs["location_and_size"][1]
                 elif mouse_pos[0] < 200 and was_clicked:
                     delete_block(self)
             elif in_rect and click_type:
                 current_block.image = self.type._image
-                current_block.rect.size = self.position_size[1]
+                current_block.rect.size = self.kwargs["location_and_size"][1]
+        elif click_id == 3:
+            if was_clicked and in_rect and was_set:
+                properties_gui.active = None
 
     def spawn(self, space, camera):
-        new_block = self.type(space, pygame.Rect(self.position_size), **self.kwargs)
+        new_block = self.type(space, pygame.Rect(self.kwargs["location_and_size"]), **self.kwargs["block_data"])
         camera.add(new_block)
 
     def open_menu(self):
         # properties_gui.widgets
-        if self.kwargs["body_type"] == pymunk.Body.DYNAMIC:
-            self.kwargs["body_type"] = pymunk.Body.STATIC
-        elif self.kwargs["body_type"] == pymunk.Body.STATIC:
-            self.kwargs["body_type"] = pymunk.Body.DYNAMIC
+        properties_gui.active = self
+        if self.kwargs["block_data"]["body_type"] == pymunk.Body.DYNAMIC:
+            self.kwargs["block_data"]["body_type"] = pymunk.Body.STATIC
+        elif self.kwargs["block_data"]["body_type"] == pymunk.Body.STATIC:
+            self.kwargs["block_data"]["body_type"] = pymunk.Body.DYNAMIC
         print(f"{self.kwargs=}")
+
+    def __str__(self):
+        return f"Block<{self.name}>"
+
+
+class PropertiesGui(Gui.ScrollableGui):
+    """
+    this is for the properties gui
+    """
+
+    @property
+    def active(self):
+        return super().active
+
+    @active.setter
+    def active(self, value):
+        super(PropertiesGui, type(self)).active.fset(self, value)
+        if isinstance(value, ObjectButton):
+            for i, (settings_group, settings) in enumerate(value.kwargs.items(), start=1):
+                print(self.rect)
+                Gui.InputBox()
+
+    @property
+    def image(self) -> pygame.Surface:
+        img = super().image
+        if self.active:
+            name = Gui.Text(str(self.active))
+            name = name.wrap(self.size)
+            img.blit(name, (0, 100))
+        return img
 
 
 pygame.init()
 # back_drop = pygame.image.load("ideas/ui/level_creator.png")
-cam_shape = 1200, 900
+cam_shape = 1200, 600
 back_drop = Gui.BaseGui.generate_image(None, cam_shape)
 screen = pygame.display.set_mode((cam_shape[0], cam_shape[1]))
 clock = pygame.time.Clock()
@@ -103,24 +140,34 @@ current_block = pygame.sprite.Sprite()
 current_block.image = None
 current_block.rect = pygame.rect.Rect(0, 0, 100, 100)
 properties_gui_size = (250, cam_shape[1])
-properties_gui = Gui.ScrollableGui((cam_shape[0]-properties_gui_size[0]/2, cam_shape[1]//2), properties_gui_size, pygame.image.load("sprites/Gui/Button.png"))
-camera_group.add(properties_gui)
-properties_gui.active = False
 
 level = leveler.Level(back_drop)
 blocks: list[ObjectButton] = []
 gui_group = Gui.GuiCollection(active=True)
 
+properties_gui = PropertiesGui((cam_shape[0] - properties_gui_size[0] / 2, cam_shape[1] // 2), properties_gui_size,
+                               pygame.image.load("sprites/Gui/Button.png"))
+properties_gui.active = False
+gui_group.add(properties_gui)
+
 
 def delete_block(block):
+    if block not in blocks:
+        return
     blocks.remove(block)
+
     gui_group.remove(block)
     camera_group.remove(block)
     update_blocks()
 
 
 def spawn(block: Type[Solid], pos):
-    btn = ObjectButton(block, pos)
+    if not blocks:
+        name = f"{block.__name__} #1"
+    else:
+        name = blocks[-1].name
+        name = f"{block.__name__} #{str(int(name[name.find('#') + 1:]) + 1)}"
+    btn = ObjectButton(block, pos, name=name)
     blocks.append(btn)
     gui_group.add(btn)
     update_blocks()
@@ -145,10 +192,9 @@ def generate_main_menu(window_screen: Gui.GuiWindow, window_size):
     blocks_menu.add(block_button)
     block_button = ObjectGui((0, 0), (100, 100), SlipperyBlock)
     blocks_menu.add(block_button)
-    start_button = Gui.Button((0, 0), (0, 0), "Start", specific_event=flip_time_pass)
+    start_button = Gui.Button((0, 0), (0, 0), "Physics Check", specific_event=flip_time_pass)
     blocks_menu.add(start_button)
     sartan = Gui.GuiCollection(blocks_menu)
-    sartan.active = True
     window_screen.add_screen("main", sartan)
 
 
@@ -185,12 +231,13 @@ def main():
         screen.fill("#71ddee")
         camera_group.update()
         camera_group.draw()
+        window.draw(display)
 
         # space.debug_draw(_draw_options)
         level.step(dt[0])
         if not time_pass:
             gui_group.draw(display)
-        window.draw(display)
+        # window.draw(display)
         if current_block.image is not None:
             screen.blit(pygame.transform.scale(current_block.image, current_block.rect.size), current_block.rect)
             # pygame.draw.rect(screen, (255, 0, 0), current_block, 10)
