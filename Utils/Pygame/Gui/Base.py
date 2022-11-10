@@ -131,6 +131,10 @@ class BaseGui(pygame.sprite.Sprite):
     def image(self) -> pygame.Surface:
         return pygame.transform.scale(self._image, self.rect.size)
 
+    def __str__(self):
+        return f"GuiWidget<{self.__class__.__name__}>" \
+               f"{'(' + self.text + ')' if hasattr(self, 'text') and self.text else ''}"
+
 
 class GuiCollection(pygame.sprite.Group, BaseGui):
     """

@@ -15,17 +15,15 @@ class Text(pygame.Surface):
     """
     simple text with no background image
     """
-
     def __init__(self, text: str, color=(0, 0, 0), font=None):
         font = self.create_font(font)
-        self.text = text if isinstance(text, str) else ("" if text is None else str(text))
         self.text_color = color
         self.font = font
+        self.text = text if isinstance(text, str) else ("" if text is None else str(text))
         self.lines = self.text.split("\n")
         font_size = self.font.size(max(self.lines, key=lambda x: self.font.size(x)[0]))
         self.size = font_size[0], font_size[1] * len(self.lines)
         super().__init__(self.size, pygame.SRCALPHA)
-        # super().__init__(self.size)
         for i, line in enumerate(self.lines):
             rect = self.get_rect()
             rect.top = font_size[1] * i
@@ -70,15 +68,25 @@ class Text(pygame.Surface):
             return self
         return Text(new_text, self.text_color, self.font)
 
+    def __str__(self):
+        return self.text
+
+    def __repr__(self):
+        return f'Text<{self.text},{self.text_color},F{self.font}>{self.size}'
+
 
 class TextBasedGui(BaseGui):
     """
     if number in size is 0 then it takes the size of the text
     """
 
-    def __init__(self, position, size, background_image, text: Optional = None, mode=("center",), font=None,
-                 text_color=(0, 0, 0)):
-        self._text = Text(text, text_color, font)
+    def __init__(self, position, size, background_image, text: Union[Text, str] = None, mode=("center",)):
+        if isinstance(text, str):
+            self._text = Text(text)
+        elif text is None:
+            self._text = Text("")
+        else:
+            self._text = text
         if not size[0]:
             size = self._text.get_width() + 30, size[1]
             position = position[0] + size[0] // 2, position[1]
@@ -88,9 +96,8 @@ class TextBasedGui(BaseGui):
         BaseGui.__init__(self, position, size, background_image)
 
         self.mode = mode
-        self._text_color = text_color
-        self.font = font
-        self._text.draw(self._image)
+        self._text_color = self._text.text_color
+        self.font = self._text.font
 
     @property
     def text(self):
@@ -110,8 +117,10 @@ class TextBasedGui(BaseGui):
             self.font = self._text.font
         else:
             raise ValueError("invalid text type")
-        self.redraw()
-        self._text.draw(self._image, self.mode)
+
+    @text.deleter
+    def text(self):
+        self._text = Text("")
 
     @property
     def text_color(self):
@@ -124,8 +133,12 @@ class TextBasedGui(BaseGui):
     @text_color.setter
     def text_color(self, value):
         self._text_color = value
-        self.redraw()
-        self._text.draw(self.image, self.mode)
+
+    @property
+    def image(self) -> pygame.Surface:
+        img = super().image
+        self._text.draw(img, self.mode)
+        return img
 
 
 class InputBox(TextBasedGui):
@@ -133,13 +146,9 @@ class InputBox(TextBasedGui):
     For text input
     """
 
-    def __init__(self, position, size, background_image, font=None, text_color=(0, 0, 0), mode=("left", 5),
+    def __init__(self, position, size, background_image, mode=("left", 5),
                  on_update=()):
-        super().__init__(position, size, background_image, "", mode, font, text_color)
-        self.font = font
-        self._text = Text("")
-        self.text_color = text_color
-        self.mode = mode
+        super().__init__(position, size, background_image, "", mode)
         self.on_update = {func: (args, kwargs) for func, (args, kwargs) in on_update}
 
     def add_on_update(self, *functions: Callable[[None], any]):
@@ -164,12 +173,6 @@ class InputBox(TextBasedGui):
             if get_text_focus() == self:
                 pause_typing(True)
 
-    # def change_rect(self, new_rect: Union[float, tuple[float, float],
-    #                                       tuple[float, float, float, float],
-    #                                       pygame.rect.Rect]):
-    #     super().change_rect(new_rect)
-    #     print("size: ", self.rect.topleft)
-
     def update_text(self, _letter, new_text):
         """
         updates the screen with the new shit
@@ -180,21 +183,14 @@ class InputBox(TextBasedGui):
         for fnc in self.on_update:
             fnc(_letter, new_text)
 
-    # @property
-    # def image(self) -> pygame.Surface:
-    #     return super().image
-
 
 class Label(TextBasedGui):
     """
     Just a text box
     """
 
-    def __init__(self, position, size, background_image, text, mode=("center",), font=None, text_color=(0, 0, 0)):
-        super().__init__(position, size, background_image, text, mode, font, text_color)
-        # self.font = font
-        # self._text: Text = Text(text, text_color, font=self.font)
-        self._text_color = self.text_color
+    def __init__(self, position, size, background_image, text=None, mode=("center",)):
+        super().__init__(position, size, background_image, text, mode)
         self.update_text()
 
     def update_text(self):
@@ -212,7 +208,7 @@ class Button(TextBasedGui, Clickable):
     resize_able = True
     back_ground = pygame.image.load("sprites/Gui/Button.png")
 
-    def __init__(self, position, size, image, font=None, specific_event=None):
+    def __init__(self, position, size, image, specific_event=None):
         if not isinstance(image, pygame.Surface):
             background = self.back_ground
         else:
@@ -221,12 +217,15 @@ class Button(TextBasedGui, Clickable):
                                                      (len(specific_event) and callable(specific_event[0]))):
             specific_event = (specific_event, (1,))
         if isinstance(image, str):
-            TextBasedGui.__init__(self, position, size, background, image, ('center',), font)
-            background = self._image
-        else:
-            BaseGui.__init__(self, position, size, background)
+            image = Text(image)
+        elif isinstance(image, pygame.Surface):
+            image = None
+        #     background = self._image
+        # else:
+        #     BaseGui.__init__(self, position, size, background)
+        TextBasedGui.__init__(self, position, size, background, image, ('center',))
+        # background = self._image
         Clickable.__init__(self, position, self.size, background, specific_event)
-        # self.image = self._image.copy()
 
 
 class ScrollableText(ScrollableImage):

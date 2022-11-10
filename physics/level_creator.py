@@ -115,9 +115,20 @@ class PropertiesGui(Gui.ScrollableGui):
     def active(self, value):
         super(PropertiesGui, type(self)).active.fset(self, value)
         if isinstance(value, ObjectButton):
+            name = Gui.Label((0, 0), (255, 50), (0, 0, 0), Gui.Text(value.name, (255, 0, 0)))
+            self.add(name)
             for i, (settings_group, settings) in enumerate(value.kwargs.items(), start=1):
-                print(self.rect)
-                Gui.InputBox()
+                print(settings_group, settings)
+                settings_group_name = Gui.Label((0, 0), (255, 50), (0, 0, 0),
+                                                Gui.Text(settings_group, (255, 0, 0)))
+                if isinstance(settings, dict):
+                    # print(settings)
+                    setting_name = settings
+                else:
+                    input_box = Gui.InputBox((0, 0), (250, 50), (255, 255, 255))
+                    joined = Gui.join(settings_group_name, input_box)
+                    print(repr(joined))
+                    self.add(joined)
 
     @property
     def image(self) -> pygame.Surface:
