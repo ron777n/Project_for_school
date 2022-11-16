@@ -12,6 +12,7 @@ from Utils.Pygame import Gui
 from Utils.Pygame.Events import check_events
 from Utils.Pygame.Gui.Base import Clickable
 from Utils.events import event
+from Utils.Pygame.image_utils import generate_image
 from Utils.timing import tick, dt
 from camera import CameraGroup
 from physics.objects import Block, Solid
@@ -61,8 +62,8 @@ class ObjectButton(Clickable):
         self.type = object_type
         self.name = name
         super().__init__(position, (100, 100), object_type._image, (self.open_menu, (3,)))
-        # self.kwargs["location_and_size"]: tuple[tuple[int, int], tuple[int, int]]
-        self.kwargs: dict[str, any] = {"location_and_size": (self.rect.topleft, (100, 100)),
+        self.kwargs: dict[str, any] = {"location": self.rect.topleft,
+                                       "size": (100, 100),
                                        "block_data": object_type.__init__.__kwdefaults__.copy()}
 
     def click(self, mouse_pos, click_type, click_id):
@@ -75,18 +76,19 @@ class ObjectButton(Clickable):
                     current_block.image = None
                 if mouse_pos[0] > 200 and was_clicked:
                     self.rect.center = mouse_pos
-                    self.kwargs["location_and_size"] = self.rect.topleft, self.kwargs["location_and_size"][1]
+                    self.kwargs["location"] = self.rect.topleft
                 elif mouse_pos[0] < 200 and was_clicked:
                     delete_block(self)
             elif in_rect and click_type:
                 current_block.image = self.type._image
-                current_block.rect.size = self.kwargs["location_and_size"][1]
+                current_block.rect.size = self.kwargs["size"]
         elif click_id == 3:
             if was_clicked and in_rect and was_set:
                 properties_gui.active = None
 
     def spawn(self, space, camera):
-        new_block = self.type(space, pygame.Rect(self.kwargs["location_and_size"]), **self.kwargs["block_data"])
+        new_block = self.type(space, pygame.Rect(self.kwargs["location"], self.kwargs["size"]),
+                              **self.kwargs["block_data"])
         camera.add(new_block)
 
     def open_menu(self):
@@ -96,7 +98,7 @@ class ObjectButton(Clickable):
             self.kwargs["block_data"]["body_type"] = pymunk.Body.STATIC
         elif self.kwargs["block_data"]["body_type"] == pymunk.Body.STATIC:
             self.kwargs["block_data"]["body_type"] = pymunk.Body.DYNAMIC
-        print(f"{self.kwargs=}")
+        # print(f"{self.kwargs=}")
 
     def __str__(self):
         return f"Block<{self.name}>"
@@ -113,37 +115,62 @@ class PropertiesGui(Gui.ScrollableGui):
 
     @active.setter
     def active(self, value):
+        if value is True:
+            return
+        self.empty()
+        self.current_height = 0
         super(PropertiesGui, type(self)).active.fset(self, value)
         if isinstance(value, ObjectButton):
-            name = Gui.Label((0, 0), (255, 50), (0, 0, 0), Gui.Text(value.name, (255, 0, 0)))
+            name = Gui.Label((self.rect.left, 25), (250, 50), (0, 0, 0), Gui.Text(value.name, (255, 0, 0)))
             self.add(name)
-            for i, (settings_group, settings) in enumerate(value.kwargs.items(), start=1):
-                print(settings_group, settings)
-                settings_group_name = Gui.Label((0, 0), (255, 50), (0, 0, 0),
-                                                Gui.Text(settings_group, (255, 0, 0)))
-                if isinstance(settings, dict):
-                    # print(settings)
-                    setting_name = settings
-                else:
-                    input_box = Gui.InputBox((0, 0), (250, 50), (255, 255, 255))
-                    joined = Gui.join(settings_group_name, input_box)
-                    print(repr(joined))
-                    self.add(joined)
+            # print("NAME FUCK", name, name.rect)
+            settings = break_settings_down(value.kwargs)
+            # settings.change_rect((0, 50, -1, -1))
+            self.add(settings)
+            print("settings_rect:", settings, settings.rect)
+            # for i, (settings_group, settings) in enumerate(value.kwargs.items(), start=1):
+            #     # print(settings_group, settings)
+            #     unwrapped = Gui.Text(settings_group.replace("_", " "), (255, 0, 0), 20)
+            #     settings_group_name = Gui.Label((0, 0), (100, 50), (0, 0, 0),
+            #                                     unwrapped.wrap((100, 50)))
+            #     if isinstance(settings, dict):
+            #         print(settings)
+            #         setting_name = settings
+            #     else:
+            #         input_box = Gui.InputBox((0, 0), (150, 50), (255, 255, 255))
+            #         joined = Gui.join(settings_group_name, input_box)
+            #         joined.change_rect((self.rect.left, i*50, 250, 50))
+            #         self.add(joined)
+            #         # self.add(settings_group_name, input_box)
 
-    @property
-    def image(self) -> pygame.Surface:
-        img = super().image
-        if self.active:
-            name = Gui.Text(str(self.active))
-            name = name.wrap(self.size)
-            img.blit(name, (0, 100))
-        return img
+
+def break_settings_down(settings: dict) -> Gui.GuiCollection:
+    # print(settings)
+    general_gui_group = Gui.ScrollableGui((125, 125), (250, 250), (255, 0, 0))
+    # general_gui_group.active = True
+    for (settings_group, settings) in settings.items():
+        if isinstance(settings, dict):
+            pass
+            # Gui.ScrollableGui((0, 0), (250, 100))
+            # a = break_settings_down(settings)
+            # # a.change_rect((0, start_location, 250, a.rect.height))
+            # general_gui_group.add(a)
+        else:
+            # print(settings_group, settings)
+            unwrapped = Gui.Text(settings_group.replace("_", " "), (255, 0, 0), 20)
+            settings_group_name = Gui.Label((0, 0), (100, 50), (0, 0, 0),
+                                            unwrapped.wrap((100, 50)))
+            input_box = Gui.InputBox((0, 0), (150, 50), (255, 255, 255))
+            joined = Gui.join(settings_group_name, input_box)
+            # joined.change_rect((0, 0, -1, -1))
+            general_gui_group.add(joined)
+    return general_gui_group
 
 
 pygame.init()
 # back_drop = pygame.image.load("ideas/ui/level_creator.png")
 cam_shape = 1200, 600
-back_drop = Gui.BaseGui.generate_image(None, cam_shape)
+back_drop = generate_image(None, cam_shape)
 screen = pygame.display.set_mode((cam_shape[0], cam_shape[1]))
 clock = pygame.time.Clock()
 camera_group = CameraGroup(back_drop, cam_shape)
@@ -155,11 +182,7 @@ properties_gui_size = (250, cam_shape[1])
 level = leveler.Level(back_drop)
 blocks: list[ObjectButton] = []
 gui_group = Gui.GuiCollection(active=True)
-
-properties_gui = PropertiesGui((cam_shape[0] - properties_gui_size[0] / 2, cam_shape[1] // 2), properties_gui_size,
-                               pygame.image.load("sprites/Gui/Button.png"))
-properties_gui.active = False
-gui_group.add(properties_gui)
+properties_gui = None
 
 
 def delete_block(block):
@@ -198,6 +221,7 @@ def save_level(back_ground, spawn_point, *data):
 
 
 def generate_main_menu(window_screen: Gui.GuiWindow, window_size):
+    global properties_gui
     blocks_menu = BlocksMenu((100, window_size[1] / 2), (200, window_size[1]), )
     block_button = ObjectGui((0, 0), (100, 100), Block)
     blocks_menu.add(block_button)
@@ -205,7 +229,10 @@ def generate_main_menu(window_screen: Gui.GuiWindow, window_size):
     blocks_menu.add(block_button)
     start_button = Gui.Button((0, 0), (0, 0), "Physics Check", specific_event=flip_time_pass)
     blocks_menu.add(start_button)
-    sartan = Gui.GuiCollection(blocks_menu)
+    properties_gui = PropertiesGui((cam_shape[0] - properties_gui_size[0] / 2, cam_shape[1] // 2), properties_gui_size,
+                                   pygame.image.load("sprites/Gui/Button.png"))
+    gui_group.add(properties_gui)
+    sartan = Gui.GuiCollection(blocks_menu, properties_gui)
     window_screen.add_screen("main", sartan)
 
 

@@ -34,12 +34,12 @@ def main():
 
     player = objects.Turret(space, pygame.rect.Rect(600-50, 400-50, 150, 100))
     camera_group.add(player)
-    block_left = objects.Block(space, pygame.rect.Rect(50, 50, 100, 500), True)
-    block_right = objects.Block(space, pygame.rect.Rect(1000, 50, 100, 500), True)
-    block_top = objects.Block(space, pygame.rect.Rect(50, 0, 1050, 100), True)
-    block_bottom = objects.Block(space, pygame.rect.Rect(50, 550, 1050, 100), True)
-    egg = objects.Block(space, pygame.rect.Rect(800, 300, 100, 100), False)
-    new_egg = objects.Block(space, pygame.rect.Rect(500, 300, 100, 100), False)
+    block_left = objects.Block(space, pygame.rect.Rect(50, 50, 100, 500), body_type=pymunk.Body.STATIC)
+    block_right = objects.Block(space, pygame.rect.Rect(1000, 50, 100, 500), body_type=pymunk.Body.STATIC)
+    block_top = objects.Block(space, pygame.rect.Rect(50, 0, 1050, 100), body_type=pymunk.Body.STATIC)
+    block_bottom = objects.Block(space, pygame.rect.Rect(50, 550, 1050, 100), body_type=pymunk.Body.STATIC)
+    egg = objects.Block(space, pygame.rect.Rect(800, 300, 100, 100))
+    new_egg = objects.Block(space, pygame.rect.Rect(500, 300, 100, 100))
     moving_objects.LineWay(new_egg, pygame.rect.Rect((250, 170), (500, 150)), True, 30, gravity=False)
 
     # stationary_blocks = pygame.sprite.Group(block_left, block_right, block_top, block_bottom)

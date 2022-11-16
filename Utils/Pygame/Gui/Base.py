@@ -7,6 +7,7 @@ from typing import Union, Callable, Iterable, Tuple
 import pygame
 
 from Utils import events
+from Utils.Pygame.image_utils import generate_image
 from Utils.Pygame.texting import pause_typing
 from Utils.timing import Timer
 
@@ -23,7 +24,7 @@ class BaseGui(pygame.sprite.Sprite):
         super().__init__()
         self.based_gui = True
         if not hasattr(self, "_image"):
-            self._image = BaseGui.generate_image(background_image, size)
+            self._image = generate_image(background_image, size)
             self.size = self._image.get_size() if size is None else size
         else:
             self.size = size
@@ -33,28 +34,6 @@ class BaseGui(pygame.sprite.Sprite):
         self.start_position = position
         self.rect.center = position
         self.on_update: dict[Callable[..., any], tuple[tuple, dict]] = {}
-
-    @staticmethod
-    def generate_image(image, size) -> pygame.surface.Surface:
-        width, height = 0, 0
-        if isinstance(image, tuple):
-            assert isinstance(size, tuple), "you need to specify width and height in size if background is static"
-            width, height = size
-            image_ = pygame.Surface((width, height))
-            image_.fill(image)
-            image = image_
-        elif image is None and isinstance(size, (tuple, list)):
-            image = pygame.Surface(size, pygame.SRCALPHA)
-        assert isinstance(image, pygame.Surface), "invalid background type"
-        if isinstance(size, int):
-            width = image.get_width() * size
-            height = image.get_height() * size
-        elif isinstance(size, tuple) and (width, height) == (0, 0):
-            width, height = size
-        else:
-            width = image.get_width()
-            height = image.get_height()
-        return pygame.transform.scale(image, (int(width), int(height)))
 
     def click(self, mouse_pos: tuple, click_type: int, button_type: int):
         """
@@ -80,9 +59,8 @@ class BaseGui(pygame.sprite.Sprite):
         """
         return copy.copy(self)
 
-    def change_rect(self, new_rect: Union[float, tuple[float, float],
-                                          tuple[float, float, float, float],
-                                          pygame.rect.Rect]):
+    def change_rect(self,
+                    new_rect: Union[float, tuple[float, float], tuple[float, float, float, float], pygame.rect.Rect]):
         """
         changes the rect of the object
         @param new_rect: if float then it's scale for the rect
@@ -106,13 +84,13 @@ class BaseGui(pygame.sprite.Sprite):
             size = size[0] * new_rect, size[1] * new_rect
         pos = [*pos]
         size = [*size]
-        if pos[0] <= 0:
+        if pos[0] < 0:
             pos[0] = self.rect.left
-        if pos[1] <= 0:
+        if pos[1] < 0:
             pos[1] = self.rect.top
-        if size[0] <= 0:
+        if size[0] < 0:
             size[0] = self.size[0]
-        if size[1] <= 0:
+        if size[1] < 0:
             size[1] = self.size[1]
         self.size = size
         self.rect.update(pos, size)
@@ -140,6 +118,7 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
     """
     a gui that contains more more gui objects in it
     """
+    Scrollable_timer = 700
 
     def __init__(self, *sprites: BaseGui, active=False):
         self._widgets: list[Union[BaseGui, tuple[BaseGui, any]]] = []
@@ -147,11 +126,13 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
             self.rect = pygame.rect.Rect(0, 0, 0, 0)
         super().__init__()
         BaseGui.__init__(self, (0, 0), (0, 0))
-        self.add(*sprites)
         self._active = active
+        self.add(*sprites)
 
         events.subscribe("click_down", self.click_down)
         events.subscribe("click_up", self.click_up)
+        events.subscribe("on_scroll", self.scroll)
+        self.scroll_time = Timer(self.Scrollable_timer, False)
 
     @property
     def active(self):
@@ -165,6 +146,8 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
                 widget.active = value
 
     def draw(self, surface):
+        if not self.active:
+            return
         for widget in self:
             surface.blit(widget.image, widget.rect)
 
@@ -178,7 +161,10 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
 
     @widgets.deleter
     def widgets(self):
-        self._widgets = []
+        self._widgets.clear()
+
+    def empty(self):
+        del self.widgets
 
     @property
     def image(self) -> pygame.Surface:
@@ -197,28 +183,28 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
 
         left = min(self.rect.left, rect.left)
         top = min(self.rect.top, rect.top)
-        self.rect.update((left,
-                          top,
-                          max(self.rect.right, rect.right) - left,
-                          max(self.rect.bottom, rect.bottom) - top))
+        self.rect.update((left, top, max(self.rect.right, rect.right) - left, max(self.rect.bottom, rect.bottom) - top))
 
     def add(self, *sprites: BaseGui) -> None:
         for widget in sprites:
             self.add_to_rect(widget.rect)
             self._widgets.append(widget)
+            events.unsubscribe("on_scroll", widget.scroll)
+            events.unsubscribe("click_down", widget.scroll)
+            events.unsubscribe("click_up", widget.scroll)
             widget.parents.append(self)
+            widget.active = self.active
 
-    def change_rect(self, new_rect: Union[float, tuple[float, float],
-                                          tuple[float, float, float, float],
-                                          pygame.rect.Rect]):
+    def change_rect(self,
+                    new_rect: Union[float, tuple[float, float], tuple[float, float, float, float], pygame.rect.Rect]):
         rects = [oof.rect.copy() for oof in self]
         size = [*self.size]
         pos = [*self.rect.topleft]
         super().change_rect(new_rect)
         pos_change = self.rect.left - pos[0], self.rect.top - pos[1]
-        if size[0] == 0:
+        if not size[0]:
             size[0] = self.size[0]
-        if size[1] == 0:
+        if not size[1]:
             size[1] = self.size[1]
         scale = [1, 1]
         if self.size[0] and size[0]:
@@ -226,7 +212,9 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
         if self.size[1] and size[1]:
             scale[1] = self.size[1] / size[1]
         for (x, y, w, h), widget in zip(rects, self):
-            widget.change_rect((pos_change[0] + x*scale[0], pos_change[1] + y*scale[1], w*scale[0], h*scale[1]))
+            print(widget, widget.rect, end=" egg ")
+            widget.change_rect((pos_change[0] + x * scale[0], pos_change[1] + y * scale[1], w * scale[0], h * scale[1]))
+            print(widget, widget.rect)
         for parent in self.parents:
             parent.add_to_rect(self.rect)
 
@@ -252,16 +240,27 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
             for button in self:
                 button.click(mouse_pos, 0, click_id)
 
+    def scroll(self, mouse_pos, dy):
+        if not self.rect.collidepoint(mouse_pos):
+            return False
+        if not self.scroll_time.check():
+            for widget in self:
+                if widget.scroll(mouse_pos, dy):
+                    return True
+            return False
+        self.scroll_time.reset()
+        return False
+
     def remove(self, widget):
         self._widgets.remove(widget)
 
-    def __iter__(self):
+    def __iter__(self) -> Iterable[BaseGui]:
         self.n = -1
         self.copied_widgets = self._widgets.copy()
         self.max_ = len(self.copied_widgets)
         return self
 
-    def __next__(self):
+    def __next__(self) -> BaseGui:
         self.n += 1
         if self.n < self.max_:
             widget = self.copied_widgets[self.n]
@@ -273,6 +272,9 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
 
     def __len__(self):
         return len(self._widgets)
+
+    def __getitem__(self, item):
+        return self._widgets[item]
 
 
 class GuiWindow(GuiCollection):
@@ -310,10 +312,9 @@ class GuiWindow(GuiCollection):
         """
         if self.active and (not screen_name or screen_name is None):
             pause_typing()
-            self._screen.empty()
+            # self._screen.empty()
             self._screen.active = False
-            self.active = False
-            del self.widgets
+            self.active = False  # del self.widgets
         elif screen_name in self.screens:
             self.active = True
             self._screen.active = False
@@ -393,8 +394,8 @@ class Scrollable(BaseGui):
         self.upwards = upwards
         self.current_height = 0
         self.rect = pygame.Rect(position, size)
-        self._image = BaseGui.generate_image(background, size)
-        BaseGui.__init__(self, position, size, background)
+        self._image = generate_image(background, size)
+        BaseGui.__init__(self, position, size, self._image)
         self.background = self._image.copy()
         events.subscribe("on_scroll", self.scroll)
 
@@ -454,14 +455,12 @@ class ScrollableGui(Scrollable, GuiCollection):
     """
     Gui that you could scroll through
     """
-    Scrollable_timer = 700
 
-    def __init__(self, position, max_size, background=None, *widgets):
+    def __init__(self, position, max_size, background=None, *widgets, active=False):
         Scrollable.__init__(self, position, max_size, background=background)
-        GuiCollection.__init__(self)
+        GuiCollection.__init__(self, active=active)
         self.widgets: list[tuple[BaseGui, int]] = []
         self.add(*widgets)
-        self.scroll_time = Timer(self.Scrollable_timer, False)
 
     def add(self, *widgets: BaseGui):
         for widget in widgets:
@@ -469,43 +468,44 @@ class ScrollableGui(Scrollable, GuiCollection):
                 if widget.size[0] != self.size[0]:
                     widget.change_rect(self.size[0] / widget.size[0])
                 widget.on_update[self.update] = (), {}
-
-            widget.rect.topleft = self.rect.left, self.current_height
-            self._widgets.append((widget, 0))
-            events.unsubscribe("on_scroll", widget.scroll)
-        self.update()
+            widget.change_rect((self.rect.left, self.current_height, -1, -1))
+            GuiCollection.add(self, widget)
+            self.current_height += widget.rect.h
+            print(self, widget, self.current_height)
 
     def scroll(self, mouse_pos, dy):
         if not self.rect.collidepoint(mouse_pos):
             return False
-        if not self.scroll_time.check():
-            for widget in self._widgets:
-                if widget.scroll(mouse_pos, dy):
-                    return True
-
-        super().scroll(mouse_pos, dy)
-        self.scroll_time.reset()
-        self.update()
-        return self.current_height - self.size[1] > self.offset
+        a = GuiCollection.scroll(self, mouse_pos, dy)
+        if not a:
+            Scrollable.scroll(self, mouse_pos, dy)
+            self.update()
+            return True
+        return False  # self.current_height - self.size[1] > self.offset
 
     @property
     def image(self):
         if not self.active:
             return pygame.surface.Surface(self.size, pygame.SRCALPHA)
         img = super().image
-        s_rect = pygame.Rect((0, 0), self.size)
-        for widget, height in self.widgets:
-            widget_rect = pygame.Rect((0, height - self.offset), widget.size)
-            if s_rect.colliderect(widget_rect):
-                img.blit(widget.image, widget_rect)
+        # print(self.widgets)
+        height = 0
+        for widget in self:
+            # widget_rect
+            widget_rect = pygame.rect.Rect(0, height - self.offset + self.rect.top, *widget.rect.size)
+            # widget_rect.top =
+            if self.rect.top > widget_rect.bottom:
+                continue
             elif self.rect.bottom <= widget_rect.top:
                 break
-            # height += widget.rect.size[1]
+            else:
+                img.blit(widget.image, widget_rect)
+            height += widget.rect.height
         return img
 
     def click(self, mouse_pos: tuple, click_type: int, click_id: int):
         self.update()
-        for widget, height in self._widgets:
+        for widget in self:
             if widget.rect.top < 0:
                 continue
             if self.rect.colliderect(widget.rect):
@@ -515,12 +515,9 @@ class ScrollableGui(Scrollable, GuiCollection):
 
     def update(self):
         height = 0
-        for i, (widget, _button) in enumerate(self.widgets):
-            widget.rect.top = height - self.offset + self.rect.top
-            self.widgets[i] = (widget, height)
-            height += widget.rect.size[1]
+        for widget in self:
+            height += widget.rect.height
         self.current_height = height
-        Scrollable.update(self)
 
 
 __all__ = ["GuiWindow", "BaseGui", "ScrollableImage", "ScrollableGui", "GuiCollection"]

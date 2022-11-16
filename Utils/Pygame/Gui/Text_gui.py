@@ -7,6 +7,7 @@ from typing import Callable, Union, Optional
 import pygame
 
 from Utils.Pygame.Gui.Base import ScrollableImage, BaseGui, Clickable
+from Utils.Pygame.image_utils import generate_image
 from Utils.Pygame.texting import start_typing, get_text_focus, pause_typing
 from Utils.events import post_event, clear_event, get_subscribers, unsubscribe
 
@@ -162,7 +163,6 @@ class InputBox(TextBasedGui):
         checks if widget was clicked
         :return:
         """
-
         # check mouseover and clicked conditions
         if self.rect.collidepoint(mouse_pos):
             if click_type:
@@ -209,20 +209,17 @@ class Button(TextBasedGui, Clickable):
     back_ground = pygame.image.load("sprites/Gui/Button.png")
 
     def __init__(self, position, size, image, specific_event=None):
-        if not isinstance(image, pygame.Surface):
+        if not isinstance(image, pygame.Surface) or isinstance(image, Text):
             background = self.back_ground
         else:
-            background = BaseGui.generate_image(image, size)
+            background = generate_image(image, size)
         if not isinstance(specific_event, tuple) or (len(specific_event) != 3 or
                                                      (len(specific_event) and callable(specific_event[0]))):
             specific_event = (specific_event, (1,))
         if isinstance(image, str):
             image = Text(image)
-        elif isinstance(image, pygame.Surface):
+        elif isinstance(image, pygame.Surface) and not isinstance(image, Text):
             image = None
-        #     background = self._image
-        # else:
-        #     BaseGui.__init__(self, position, size, background)
         TextBasedGui.__init__(self, position, size, background, image, ('center',))
         # background = self._image
         Clickable.__init__(self, position, self.size, background, specific_event)

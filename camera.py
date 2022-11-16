@@ -5,6 +5,7 @@ import pygame
 
 from Utils.Pygame.Gui import BaseGui
 from leveler import build_levels, join_levels
+from Utils.Pygame.image_utils import generate_image
 from Utils.Pygame.targeting import BoundTracker
 from Utils.timing import dt
 
@@ -21,7 +22,7 @@ class CameraGroup(pygame.sprite.Group, BoundTracker):
         # real basics
         self._target = None
         if not isinstance(back_ground, pygame.surface.Surface):
-            back_ground = BaseGui.generate_image(back_ground, cam_size)
+            back_ground = generate_image(back_ground, cam_size)
         self.ground_surface = back_ground
         self.og_cam_size = cam_size
         self.map_size = self.ground_surface.get_size()

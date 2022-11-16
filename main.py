@@ -99,7 +99,7 @@ def key_down(normal, _special_keys, key):
         pygame.display.toggle_fullscreen()
     if window.active:
         return
-    if key == 27:
+    if key == pygame.K_ESCAPE:
         window.screen = "main_menu"
     if key == pygame.K_RETURN:
         start_typing(((pygame.K_RETURN, ("submit",)), (pygame.K_ESCAPE, ("pause",))))

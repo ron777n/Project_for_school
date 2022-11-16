@@ -30,3 +30,25 @@ def tint_image(image: pygame.Surface, color=(0, 0, 0), strength=127):
     image.fill((color[0]*strength, color[1]*strength, color[2]*strength), None, pygame.BLEND_RGBA_ADD)
     # image.fill(color[0:3] + (0,), None, pygame.BLEND_RGBA_ADD)
     return image
+
+
+def generate_image(image, size) -> pygame.surface.Surface:
+    width, height = 0, 0
+    if isinstance(image, tuple):
+        assert isinstance(size, tuple), "you need to specify width and height in size if background is static"
+        width, height = size
+        image_ = pygame.Surface((width, height))
+        image_.fill(image)
+        image = image_
+    elif image is None and isinstance(size, (tuple, list)):
+        image = pygame.Surface(size, pygame.SRCALPHA)
+    assert isinstance(image, pygame.Surface), "invalid background type"
+    if isinstance(size, int):
+        width = image.get_width() * size
+        height = image.get_height() * size
+    elif isinstance(size, tuple) and (width, height) == (0, 0):
+        width, height = size
+    else:
+        width = image.get_width()
+        height = image.get_height()
+    return pygame.transform.scale(image, (int(width), int(height)))

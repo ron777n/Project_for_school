@@ -23,12 +23,12 @@ def grid_layout(size, widgets: list[list[BaseGui]]) -> GuiCollection:
         col_per = size[0]/(len(row)+1)
         for col_index, widget in enumerate(row, start=1):
             widget.change_rect((col_index * col_per - widget.rect.size[0]/2,
-                                row_index * row_per - widget.rect.size[1]/2, 0, 0))
+                                row_index * row_per - widget.rect.size[1]/2, -1, -1))
             widgets_list.add(widget)
     return widgets_list
 
 
-def join(*sprites, _align="horizontal", should_copy=True):
+def join(*sprites, _align="horizontal", should_copy=True) -> GuiCollection:
     """
     joins a couple of widgets to one active group and returns the active group
     """
@@ -41,7 +41,7 @@ def join(*sprites, _align="horizontal", should_copy=True):
             new_sprites.append(sprite.copy())
         else:
             new_sprites.append(sprite)
-        new_sprites[-1].change_rect((new_sprites[-2].rect.right, -1, 0, 0))
+        new_sprites[-1].change_rect((new_sprites[-2].rect.right, new_sprites[-2].rect.top, -1, new_sprites[-2].rect.h))
     return GuiCollection(*new_sprites)
 
 
