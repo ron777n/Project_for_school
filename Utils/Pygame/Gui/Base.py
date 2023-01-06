@@ -172,6 +172,7 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
         for widget in self:
             new_rect = widget.rect.copy()
             new_rect.topleft = (widget.rect.left - self.rect.left, widget.rect.top - self.rect.top)
+            print(self.parents, self, new_rect)
             image.blit(widget.image, new_rect)
         return image
 
@@ -212,9 +213,7 @@ class GuiCollection(pygame.sprite.Group, BaseGui):
         if self.size[1] and size[1]:
             scale[1] = self.size[1] / size[1]
         for (x, y, w, h), widget in zip(rects, self):
-            print(widget, widget.rect, end=" egg ")
             widget.change_rect((pos_change[0] + x * scale[0], pos_change[1] + y * scale[1], w * scale[0], h * scale[1]))
-            print(widget, widget.rect)
         for parent in self.parents:
             parent.add_to_rect(self.rect)
 

@@ -17,7 +17,7 @@ class CameraGroup(pygame.sprite.Group, BoundTracker):
     zoom_cap = (1, 10)
     zoom_time = 10
 
-    def __init__(self, back_ground: pygame.surface.Surface, cam_size=(1200, 1000), *sprites):
+    def __init__(self, back_ground: pygame.surface.Surface | tuple[int, int, int], cam_size=(1200, 1000), *sprites):
         super().__init__(*sprites)
         # real basics
         self._target = None

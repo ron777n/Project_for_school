@@ -186,7 +186,6 @@ def load_window(time_passage=True):
     just loads the window, if True passes time
     """
     display = pygame.display.get_surface()
-    pygame.draw.rect(display, (0, 255, 0), main_player.rect)
     if time_passage:
         level.step(dt[0])
     camera_group.update()

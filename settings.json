@@ -1,0 +1,11 @@
+{
+  "Screen": {
+    "Size": [1200, 700],
+    "Fps": 60
+  },
+  "Camera": {
+    "DefaultZoom": 1,
+    "MinZoom": 0.25,
+    "MaxZoom": 10
+  }
+}
