@@ -1,11 +1,16 @@
 {
   "Screen": {
-    "Size": [1200, 700],
+    "Size": [1280, 768],
     "Fps": 60
   },
   "Camera": {
     "DefaultZoom": 1,
     "MinZoom": 0.25,
     "MaxZoom": 10
+  },
+  "Editor":
+  {
+    "TileSize": 64,
+    "GridColor": "black"
   }
 }
