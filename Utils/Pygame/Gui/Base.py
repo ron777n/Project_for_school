@@ -470,7 +470,6 @@ class ScrollableGui(Scrollable, GuiCollection):
             widget.change_rect((self.rect.left, self.current_height, -1, -1))
             GuiCollection.add(self, widget)
             self.current_height += widget.rect.h
-            print(self, widget, self.current_height)
 
     def scroll(self, mouse_pos, dy):
         if not self.rect.collidepoint(mouse_pos):
@@ -491,7 +490,7 @@ class ScrollableGui(Scrollable, GuiCollection):
         height = 0
         for widget in self:
             # widget_rect
-            widget_rect = pygame.rect.Rect(0, height - self.offset + self.rect.top, *widget.rect.size)
+            widget_rect = pygame.rect.Rect(0, height - self.offset, *widget.rect.size)
             # widget_rect.top =
             if self.rect.top > widget_rect.bottom:
                 continue
@@ -507,9 +506,11 @@ class ScrollableGui(Scrollable, GuiCollection):
         for widget in self:
             if widget.rect.top < 0:
                 continue
-            if self.rect.colliderect(widget.rect):
-                widget.click(mouse_pos, click_type, click_id)
+            elif self.rect.colliderect(widget.rect):
+                pass
+                #print(widget, mouse_pos, widget.rect, widget.click(mouse_pos, click_type, click_id))
             elif self.rect.bottom <= widget.rect.bottom:
+                # print(self)
                 break
 
     def update(self):

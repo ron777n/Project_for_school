@@ -123,11 +123,9 @@ class PropertiesGui(Gui.ScrollableGui):
         if isinstance(value, ObjectButton):
             name = Gui.Label((self.rect.left, 25), (250, 50), (0, 0, 0), Gui.Text(value.name, (255, 0, 0)))
             self.add(name)
-            # print("NAME FUCK", name, name.rect)
-            settings = break_settings_down(value.kwargs)
-            # settings.change_rect((0, 50, -1, -1))
+            settings = break_settings_down(value.kwargs, (250, 250))
             self.add(settings)
-            print("settings_rect:", settings, settings.rect)
+            # print("settings_rect:", settings, settings.rect)
             # for i, (settings_group, settings) in enumerate(value.kwargs.items(), start=1):
             #     # print(settings_group, settings)
             #     unwrapped = Gui.Text(settings_group.replace("_", " "), (255, 0, 0), 20)
@@ -144,25 +142,26 @@ class PropertiesGui(Gui.ScrollableGui):
             #         # self.add(settings_group_name, input_box)
 
 
-def break_settings_down(settings: dict) -> Gui.GuiCollection:
+def break_settings_down(settings: dict, size=(250, 250)) -> Gui.GuiCollection:
     # print(settings)
-    general_gui_group = Gui.ScrollableGui((125, 125), (250, 250), (255, 0, 0))
-    # general_gui_group.active = True
+    general_gui_group = Gui.ScrollableGui((0, 0), size, (255, 0, 0))
+
+    general_gui_group.add(Gui.InputBox((0, 0), (250, 50), (0, 255, 0)))
+
+    return general_gui_group
     for (settings_group, settings) in settings.items():
         if isinstance(settings, dict):
             pass
-            # Gui.ScrollableGui((0, 0), (250, 100))
             # a = break_settings_down(settings)
-            # # a.change_rect((0, start_location, 250, a.rect.height))
+            # print(a.size)
             # general_gui_group.add(a)
         else:
-            # print(settings_group, settings)
+            print(settings_group, settings)
             unwrapped = Gui.Text(settings_group.replace("_", " "), (255, 0, 0), 20)
             settings_group_name = Gui.Label((0, 0), (100, 50), (0, 0, 0),
                                             unwrapped.wrap((100, 50)))
             input_box = Gui.InputBox((0, 0), (150, 50), (255, 255, 255))
             joined = Gui.join(settings_group_name, input_box)
-            # joined.change_rect((0, 0, -1, -1))
             general_gui_group.add(joined)
     return general_gui_group
 

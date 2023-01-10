@@ -24,8 +24,8 @@ class Main:
         self.display_surface = pygame.display.get_surface()
         self.clock = pygame.time.Clock()
 
-        cursor_surf = pygame.image.load("sprites/Cursor.png").convert_alpha()
-        cursor = pygame.Cursor((0, 0), cursor_surf)
+        cursor_surf = pygame.image.load(settings["Cursor"]["Icon"]).convert_alpha()
+        cursor = pygame.Cursor(tuple(settings["Cursor"]["ClickCord"]), cursor_surf)
         pygame.mouse.set_cursor(cursor)
 
         # self.game = Game()

@@ -33,13 +33,17 @@ class Editor:
         :param event:
         """
         if event.type == pygame.MOUSEMOTION:
-            if event.buttons[1]:
+            if event.buttons[1] or \
+                    (event.buttons[0] and pygame.key.get_mods() & pygame.KMOD_CTRL):
                 self.origin += Vector2(event.rel)
         elif event.type == pygame.MOUSEWHEEL:
-            if pygame.key.get_mods() & pygame.KMOD_CTRL:
-                self.origin.x -= event.y * 50
-            else:
-                self.origin.y -= event.y * 50
+            if event.x:
+                self.origin.x -= event.x * 64 / 2
+            if event.y:
+                if pygame.key.get_mods() & pygame.KMOD_CTRL:
+                    self.origin.x -= event.y * 64 / 2
+                else:
+                    self.origin.y -= event.y * 50
 
     def draw_tile_lines(self):
         """

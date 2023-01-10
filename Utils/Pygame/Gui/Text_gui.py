@@ -168,10 +168,13 @@ class InputBox(TextBasedGui):
             if click_type:
                 start_typing(((pygame.K_RETURN, ("submit",)), (pygame.K_ESCAPE, ("shit",))), self.text, self)
                 clear_event("letter_typed", (self.update_text,))
+            return True
+
         elif self.update_text in get_subscribers("letter_typed"):
             unsubscribe("letter_typed", self.update_text)
             if get_text_focus() == self:
                 pause_typing(True)
+        return False
 
     def update_text(self, _letter, new_text):
         """

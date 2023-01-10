@@ -1,6 +1,6 @@
 {
   "Screen": {
-    "Size": [1280, 768],
+    "Size": [1024, 512],
     "Fps": 60
   },
   "Camera": {
@@ -12,5 +12,9 @@
   {
     "TileSize": 64,
     "GridColor": "black"
+  },
+  "Cursor": {
+    "Icon": "sprites/Cursor.png",
+    "ClickCord": [100, 0]
   }
 }
